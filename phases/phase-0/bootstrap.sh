@@ -3,7 +3,7 @@ set -euo pipefail
 
 DOCKER_DATA_ROOT="${EKTISIS_DOCKER_DATA_ROOT:-/home/docker-data}"
 INSTALL_DOCKER="${EKTISIS_INSTALL_DOCKER:-1}"
-EKTISIS_HOME_NAME="${EKTISIS_HOME_NAME:-ektisis}"
+EKTISIS_RUNTIME_DIR="${EKTISIS_RUNTIME_DIR:-}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root, for example: sudo $0"
@@ -101,11 +101,17 @@ TARGET_USER="${SUDO_USER:-}"
 if [ -n "$TARGET_USER" ] && id "$TARGET_USER" >/dev/null 2>&1; then
   usermod -aG docker "$TARGET_USER" || true
   TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
-  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME"/{data,compose,backups,secrets,logs,projects}
-  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME/data"/{gitea,postgres,litellm,openhands,freellmapi}
-  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME/backups"/{gitea,postgres,configs}
-  chmod 700 "$TARGET_HOME/$EKTISIS_HOME_NAME/secrets"
-  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/$EKTISIS_HOME_NAME"
+
+  if [ -z "$EKTISIS_RUNTIME_DIR" ]; then
+    EKTISIS_RUNTIME_DIR="$TARGET_HOME/ektisis-runtime"
+  fi
+
+  mkdir -p "$EKTISIS_RUNTIME_DIR"/{data,compose,backups,secrets,logs,projects}
+  mkdir -p "$EKTISIS_RUNTIME_DIR/data"/{gitea,postgres,litellm,openhands,freellmapi}
+  mkdir -p "$EKTISIS_RUNTIME_DIR/backups"/{gitea,postgres,configs}
+  chmod 700 "$EKTISIS_RUNTIME_DIR/secrets"
+  chown -R "$TARGET_USER:$TARGET_USER" "$EKTISIS_RUNTIME_DIR"
+  echo "Ektisis runtime directory: $EKTISIS_RUNTIME_DIR"
   echo "User '$TARGET_USER' added to docker group. Re-login may be required."
 fi
 
