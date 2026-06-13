@@ -56,7 +56,7 @@ fi
 
 [ -d "$RUNTIME_DIR/data/postgres" ] && ok "PostgreSQL data directory exists" || fail "missing PostgreSQL data directory"
 [ -d "$RUNTIME_DIR/data/gitea" ] && ok "Gitea data directory exists" || fail "missing Gitea data directory"
-[ -d "$RUNTIME_DIR/data/gitea-config" ] && ok "Gitea config directory exists" || fail "missing Gitea config directory"
+[ -d "$RUNTIME_DIR/data/gitea/gitea" ] && ok "Gitea work directory exists" || fail "missing Gitea work directory"
 
 echo
 echo "PASS: $PASS"
