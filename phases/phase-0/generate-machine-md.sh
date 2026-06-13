@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT="${1:-$HOME/ektisis/MACHINE.md}"
+RUNTIME_DIR="${EKTISIS_RUNTIME_DIR:-$HOME/ektisis-runtime}"
+OUT="${1:-$RUNTIME_DIR/MACHINE.md}"
 mkdir -p "$(dirname "$OUT")"
 
 HOSTNAME_VALUE="$(hostname 2>/dev/null || echo 'not detected')"
@@ -27,6 +28,10 @@ Hostname: $HOSTNAME_VALUE
 User: $USER_VALUE
 Operating system: $OS_VALUE
 IPs: $IP_VALUE
+
+## Runtime
+
+Runtime directory: $RUNTIME_DIR
 
 ## Hardware
 
