@@ -123,11 +123,28 @@ What it checks:
 - Docker Compose status, if available
 - disk layout
 
-What to do after it runs:
+How to read the output:
 
-- If there are only `OK` and `WARN` lines, continue to Step 2.
-- If there is a `FAIL`, stop and fix the failure before continuing.
-- A warning is not always a blocker. It often means the bootstrap script still needs to configure something.
+- `OK` means that item is already fine.
+- `WARN` means that item needs attention, but it is usually expected on a fresh machine.
+- `FAIL` means there is a blocker that must be fixed before continuing.
+
+The doctor also prints a result:
+
+- `READY TO VALIDATE`: run `bash phases/phase-0/validate.sh` next.
+- `NEEDS BASELINE`: run `sudo bash phases/phase-0/bootstrap.sh` next.
+- `BLOCKED`: do not continue until the `FAIL` item is fixed.
+
+On a fresh VPS, warnings like `docker not installed` and `docker compose not available` are normal. They mean the machine has not received the Phase 0 baseline yet.
+
+Example expected on a fresh VPS:
+
+```txt
+WARN: docker not installed
+WARN: docker compose not available
+Result: NEEDS BASELINE
+Run next: sudo bash phases/phase-0/bootstrap.sh
+```
 
 You may run `doctor.sh` again at any time.
 
@@ -149,8 +166,8 @@ What it does:
 - installs Docker from the official Docker APT repository when Docker is missing
 - removes known conflicting Docker packages before installing Docker
 - configures Docker data-root at `/home/docker-data` when safe
-- adds the current user to the Docker group
-- creates base Ektisis directories under `~/ektisis`
+- adds the current user to the Docker group when needed
+- creates base Ektisis runtime directories under `~/ektisis-runtime`
 
 Idempotent behavior:
 
@@ -160,11 +177,12 @@ Idempotent behavior:
 - masked sleep targets stay masked
 - Docker installation is skipped when Docker already exists
 - Docker data-root is changed only when there are no containers
-- existing Ektisis directories are kept
+- existing Ektisis runtime directories are kept
 
 What to do after it runs:
 
 - If Docker was installed for the first time, close the SSH session and connect again.
+- If the script says Docker already works without sudo, you can continue directly.
 - If you do not want to reconnect yet, you can try `newgrp docker`.
 - After reconnecting, return to the project folder.
 
@@ -200,7 +218,7 @@ What it checks:
 - UFW is active
 - OpenSSH is allowed in UFW
 - sleep, suspend, and hibernation targets are disabled
-- base Ektisis directories exist
+- base Ektisis runtime directories exist
 
 What to do after it runs:
 
@@ -230,6 +248,12 @@ bash phases/phase-0/generate-machine-md.sh
 ```
 
 This creates or rewrites a local `MACHINE.md` file with the minimum useful machine information for debugging and comparison.
+
+By default, it is created at:
+
+```txt
+~/ektisis-runtime/MACHINE.md
+```
 
 Do not commit a real `MACHINE.md` from a real machine.
 
@@ -306,7 +330,7 @@ All of these are true:
 - firewall allows SSH
 - sleep, suspend, and hibernation are disabled
 - Docker data-root is acceptable for the disk layout
-- base Ektisis directories exist
+- base Ektisis runtime directories exist
 
 When all items pass, the machine is ready for Phase 1A.
 
