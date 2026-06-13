@@ -77,6 +77,14 @@ else
   fail "sleep/suspend/hibernate targets are not fully masked"
 fi
 
+for path in "$HOME/ektisis/data" "$HOME/ektisis/compose" "$HOME/ektisis/backups" "$HOME/ektisis/secrets" "$HOME/ektisis/logs" "$HOME/ektisis/projects"; do
+  if [ -d "$path" ]; then
+    pass "directory exists: $path"
+  else
+    fail "missing directory: $path"
+  fi
+done
+
 if [ "$FAIL" -eq 0 ]; then
   echo "Phase 0 validated. Machine is ready for Phase 1A."
   exit 0
