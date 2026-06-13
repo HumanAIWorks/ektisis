@@ -1,25 +1,33 @@
-# Ektisis Phase 1B — Gitea baseline configuration
+# Ektisis Phase 1B — Automated Gitea Git flow check
 
 This guide is the official step-by-step process for Phase 1B.
 
 Follow it from top to bottom.
 
-Phase 1B proves that the Gitea instance from Phase 1A can be used as the first Git server for the factory.
+Phase 1B proves that the Gitea instance from Phase 1A can be used as a Git server by an automated process.
 
-This phase does not configure HTTPS, a domain name, CI/CD, runners, or AI agents yet.
+This phase does not configure HTTPS, a domain name, CI/CD, runners, AI agents, or real project repositories yet.
 
 ## What Phase 1B proves
 
-At the end of this phase, Gitea must support this basic Git flow:
+The phase script must prove this temporary flow:
 
 ```txt
-create organization
-→ create repository
+validate Phase 1A
+→ validate Phase 1B prerequisites
+→ create temporary organization
+→ create temporary repository
 → clone repository
 → commit a file
 → push the file back
-→ confirm the file in the browser
+→ remove temporary repository
+→ remove temporary organization
+→ remove temporary local clone
 ```
+
+The temporary organization and repository exist only to prove that Gitea works.
+
+They are not part of the final factory workspace.
 
 A repository is a project folder tracked by Git.
 
@@ -27,30 +35,73 @@ An organization is a group inside Gitea where related repositories can live toge
 
 A smoke test is a small test that confirms the basic flow works before building more things on top.
 
-## Step 1 — Confirm Phase 1A is still healthy
+## Step 1 — Run the automated Phase 1B check
 
 Run this from the Ektisis repository directory on the server:
 
 ```bash
-bash phases/phase-1a/validate.sh
-bash phases/phase-1a/check-access.sh
+bash phases/phase-1b/run.sh
 ```
 
 Why this step exists:
 
-- Phase 1B depends on the Gitea and PostgreSQL services created in Phase 1A
-- this confirms the services are still running before testing Git operations
-- the access check prints the browser URL for Gitea
+- it checks that Phase 1A is still working
+- it checks that Phase 1B prerequisites are available
+- it validates Gitea through the API and Git
+- it avoids leaving manual test organizations or repositories behind
+
+The script asks for:
+
+```txt
+Gitea username
+Gitea password or token
+```
+
+Use a Gitea user that can create organizations and repositories.
 
 Expected result:
 
 ```txt
-Phase 1A validated. Gitea + PostgreSQL are running.
+Phase 1B automated smoke test passed.
 ```
 
-The access check should also say that Gitea responds inside the machine.
+The script should also report that it cleaned up temporary resources.
 
-If this step fails, follow the troubleshooting document suggested by the script output.
+## What the script creates temporarily
+
+The script creates names similar to:
+
+```txt
+Organization: ektisis-smoke-<run-id>
+Repository: git-flow-check
+File: phase-1b-smoke-test.txt
+```
+
+These are validation artifacts only.
+
+They should be removed automatically before the script exits.
+
+## If Phase 1A validation fails
+
+The script stops if Phase 1A is not healthy.
+
+Follow Phase 1A documentation:
+
+```txt
+phases/phase-1a/README.md
+```
+
+Then run Phase 1B again:
+
+```bash
+bash phases/phase-1b/run.sh
+```
+
+## If browser or network access fails
+
+The script uses Phase 1A access checks.
+
+If access fails, follow the troubleshooting document suggested by the script or by the access check.
 
 Common links:
 
@@ -60,303 +111,56 @@ docs/troubleshooting/local-network.md
 docs/troubleshooting/generic-vps.md
 ```
 
-After fixing the problem, return to Step 1.
-
-## Step 2 — Validate Phase 1B prerequisites
-
-Run this from the Ektisis repository directory on the server:
+After fixing the problem, run Phase 1B again:
 
 ```bash
-bash phases/phase-1b/validate.sh
+bash phases/phase-1b/run.sh
 ```
 
-Why this step exists:
-
-- it confirms Git exists on the server
-- it confirms Gitea still responds locally
-- it prepares the runtime workspace used by the smoke test
-
-Expected result:
-
-```txt
-Phase 1B validation passed. Ready for the Git smoke test.
-```
-
-If this step fails, read the script output, fix the reported issue, and return to Step 2.
-
-## Step 3 — Open Gitea in the browser
-
-Open a browser on your computer.
-
-Use the URL printed by Step 1.
-
-The URL format is:
-
-```txt
-http://YOUR_SERVER_IP:3000/
-```
-
-For documentation examples only, this guide may use:
-
-```txt
-http://203.0.113.10:3000/
-```
-
-Do not copy the example IP. Use your own server IP.
-
-Why this step exists:
-
-- organization and repository creation are manual in this phase
-- later phases may automate this with the Gitea API, but Phase 1B keeps the baseline visible and simple
-
-Expected result:
-
-- the Gitea web interface opens
-- you can sign in with the administrator account created during Phase 1A
-
-If the browser does not open Gitea, return to Step 1 and follow the troubleshooting link suggested by `check-access.sh`.
-
-## Step 4 — Sign in to Gitea
-
-In the Gitea browser page, click:
-
-```txt
-Sign In
-```
-
-Depending on the interface language, this may appear as:
-
-```txt
-Entrar
-```
-
-Enter the administrator credentials created during Phase 1A.
-
-Why this step exists:
-
-- the next steps create an organization and repository
-- those actions require an authenticated Gitea user
-
-Expected result:
-
-- you are logged in
-- the top-right user menu appears
-
-If sign-in fails, confirm you are using the Gitea credentials, not the database credentials and not the Linux credentials.
-
-Then return to Step 4.
-
-## Step 5 — Create the organization
-
-In Gitea, use the top-right menu.
-
-Click:
-
-```txt
-Top-right + menu
-→ New Organization
-```
-
-Depending on the interface language, this may appear as:
-
-```txt
-Menu + no canto superior direito
-→ Nova Organização
-```
-
-Fill in:
-
-```txt
-Organization Name: ektisis
-Visibility: Private recommended
-```
-
-Then create the organization.
-
-Why this step exists:
-
-- factory repositories should live under an organization, not under a personal user
-- this gives us a stable namespace for future automation
-
-Expected result:
-
-- an organization named `ektisis` exists in Gitea
-- the organization page opens after creation
-
-If the organization already exists, open it and continue to Step 6.
-
-## Step 6 — Create the smoke test repository
-
-Inside the `ektisis` organization page, create a new repository.
-
-Click:
-
-```txt
-New Repository
-```
-
-Depending on the interface language, this may appear as:
-
-```txt
-Novo Repositório
-```
-
-Fill in:
-
-```txt
-Owner: ektisis
-Repository Name: phase-1b-smoke-test
-Visibility: Private recommended
-Initialize repository: checked
-Default branch: main
-```
-
-If the screen asks about README, choose to initialize with a README.
-
-Then create the repository.
-
-Why this step exists:
-
-- the smoke test needs a repository to clone
-- initializing with README avoids testing against an empty repository
-
-Expected result:
-
-- the repository page opens
-- the repository path is under the organization `ektisis`
-- the repository name is `phase-1b-smoke-test`
-
-The browser URL should have this shape:
-
-```txt
-http://YOUR_SERVER_IP:3000/ektisis/phase-1b-smoke-test
-```
-
-If the repository was created under your personal user instead of the organization, create it again under the `ektisis` organization.
-
-Then return to Step 6 and confirm the repository path.
-
-## Step 7 — Run the Git smoke test
-
-Return to the server terminal and run this from the Ektisis repository directory:
-
-```bash
-bash phases/phase-1b/smoke-test-http.sh
-```
-
-The script asks for:
-
-```txt
-Gitea username
-Gitea credential
-Organization
-Repository
-```
-
-Use your Gitea username and credential.
-
-When asked for organization and repository, press Enter to accept the defaults if you used the recommended names.
-
-Why this step exists:
-
-- it proves clone works
-- it proves local commit works
-- it proves push back to Gitea works
-
-Expected result:
-
-```txt
-Phase 1B smoke test completed.
-```
-
-If the script says `Repository not found`, go to the troubleshooting section `Repository not found`, then return to Step 7.
-
-If authentication fails, go to the troubleshooting section `Authentication failed`, then return to Step 7.
-
-## Step 8 — Confirm the pushed file in the browser
-
-Open the test repository in Gitea.
-
-The repository URL shape is:
-
-```txt
-http://YOUR_SERVER_IP:3000/ektisis/phase-1b-smoke-test
-```
-
-Look for this file:
-
-```txt
-phase-1b-smoke-test.txt
-```
-
-Why this step exists:
-
-- the terminal can say push succeeded, but the browser confirms Gitea stored the change
-
-Expected result:
-
-- the file appears in the repository file list
-- opening the file shows the smoke test timestamp
-
-If the file does not appear, refresh the page. If it still does not appear, return to Step 7 and copy the exact script output for troubleshooting.
-
-## Troubleshooting: Repository not found
-
-Use this section only if Step 7 fails with:
-
-```txt
-Repository not found
-```
-
-Check in the browser:
-
-```txt
-Organization exists: ektisis
-Repository exists inside that organization: phase-1b-smoke-test
-Repository was initialized with README
-```
-
-The repository URL should have this shape:
-
-```txt
-http://YOUR_SERVER_IP:3000/ektisis/phase-1b-smoke-test
-```
-
-Common causes:
-
-- the organization was not created
-- the repository was not created
-- the repository was created under a personal user instead of the organization
-- the repository name has a typo
-- the logged-in user does not have permission to read the repository
-
-Fix the issue in Gitea.
-
-Then return to Step 7.
-
-## Troubleshooting: Authentication failed
-
-Use this section only if Step 7 fails with an authentication error.
+## If Gitea authentication fails
 
 Check:
 
-- the username is your Gitea username, not the Linux username
-- the credential belongs to Gitea, not the database or Linux user
-- the user has access to the repository
+- the username belongs to Gitea, not Linux
+- the credential belongs to Gitea, not PostgreSQL
+- the user can create organizations
+- the user can create repositories
 
-Fix the issue.
+Then run Phase 1B again:
 
-Then return to Step 7.
+```bash
+bash phases/phase-1b/run.sh
+```
+
+## If cleanup is incomplete
+
+The script tries to remove:
+
+```txt
+- temporary repository
+- temporary organization
+- temporary local clone
+```
+
+If the script warns that cleanup did not complete automatically, open Gitea in the browser and remove the temporary organization shown in the script output.
+
+Only remove organizations with the temporary smoke-test prefix used by the script.
+
+Do not remove real organizations or real repositories.
 
 ## Phase 1B completion criteria
 
 Phase 1B is complete when all items are true:
 
 - Phase 1A validation passes
-- Phase 1B validation passes
-- organization `ektisis` exists, or another chosen organization exists
-- repository `phase-1b-smoke-test` exists, or another chosen test repository exists
+- Phase 1B prerequisite validation passes
+- temporary organization creation works
+- temporary repository creation works
 - clone via HTTP works
 - commit works
 - push works
-- the pushed file appears in the Gitea browser UI
+- temporary repository cleanup works
+- temporary organization cleanup works
+- temporary local clone cleanup works
+
+When all items pass, Gitea is ready to be used by later automated development phases.
