@@ -6,6 +6,36 @@ Phase 0 prepares a Debian or Ubuntu machine to behave as a reliable server for E
 
 The goal is not to install the full platform yet. The goal is to reach the smallest reliable base for the next phase.
 
+## Idempotency contract
+
+Phase 0 is designed to be repeatable.
+
+You should be able to run the Phase 0 scripts more than once on the same machine.
+
+Expected behavior:
+
+- `doctor.sh` only inspects the machine and makes no changes.
+- `bootstrap.sh` applies the baseline and skips items that are already correct.
+- `validate.sh` checks whether the final state is ready for the next phase.
+- `generate-machine-md.sh` rewrites the local machine inventory.
+
+Important limits:
+
+- `bootstrap.sh` does not overwrite an existing Docker data directory when containers already exist.
+- SSH hardening is documented as a manual optional step because locking yourself out is possible.
+- Router DHCP reservation is manual because it happens outside the server.
+- BIOS or UEFI settings are manual because scripts cannot control them safely.
+
+Safe loop:
+
+```bash
+bash phases/phase-0/doctor.sh
+sudo bash phases/phase-0/bootstrap.sh
+bash phases/phase-0/validate.sh
+```
+
+If validation fails, fix the reported item and run the same loop again.
+
 ## Final state expected
 
 At the end of Phase 0, the machine should have:
@@ -67,6 +97,13 @@ git clone https://github.com/HumanAIWorks/ektisis.git
 cd ektisis
 ```
 
+This step is also repeatable if the repository already exists. In that case, do not clone again. Update it instead:
+
+```bash
+cd ektisis
+git pull
+```
+
 ## Step 1 — Inspect the machine
 
 Run:
@@ -92,6 +129,8 @@ What to do after it runs:
 - If there is a `FAIL`, stop and fix the failure before continuing.
 - A warning is not always a blocker. It often means the bootstrap script still needs to configure something.
 
+You may run `doctor.sh` again at any time.
+
 ## Step 2 — Apply the baseline
 
 Run:
@@ -113,6 +152,16 @@ What it does:
 - adds the current user to the Docker group
 - creates base Ektisis directories under `~/ektisis`
 
+Idempotent behavior:
+
+- already installed packages are kept
+- SSH is enabled again if needed
+- UFW keeps existing OpenSSH rules
+- masked sleep targets stay masked
+- Docker installation is skipped when Docker already exists
+- Docker data-root is changed only when there are no containers
+- existing Ektisis directories are kept
+
 What to do after it runs:
 
 - If Docker was installed for the first time, close the SSH session and connect again.
@@ -126,6 +175,8 @@ cd ~/ektisis
 ```
 
 If the repository was cloned somewhere else, go back to that folder instead.
+
+You may run `bootstrap.sh` again after a failure or after manually fixing something.
 
 ## Step 3 — Validate Phase 0
 
@@ -147,12 +198,15 @@ What it checks:
 - UFW is active
 - OpenSSH is allowed in UFW
 - sleep, suspend, and hibernation targets are disabled
+- base Ektisis directories exist
 
 What to do after it runs:
 
 - If validation passes, continue to Step 4.
 - If validation fails because Docker requires sudo, reconnect to the server and run validation again.
 - If validation still fails, do not continue to Phase 1A. Fix Phase 0 first.
+
+You may run `validate.sh` again at any time.
 
 ## Step 4 — Generate the local machine inventory
 
@@ -162,7 +216,7 @@ Run:
 bash phases/phase-0/generate-machine-md.sh
 ```
 
-This creates a local `MACHINE.md` file with the minimum useful machine information for debugging and comparison.
+This creates or rewrites a local `MACHINE.md` file with the minimum useful machine information for debugging and comparison.
 
 Do not commit a real `MACHINE.md` from a real machine.
 
@@ -261,6 +315,16 @@ sudo bash phases/phase-0/bootstrap.sh
 
 bash phases/phase-0/validate.sh
 bash phases/phase-0/generate-machine-md.sh
+```
+
+For an existing clone:
+
+```bash
+cd ektisis
+git pull
+bash phases/phase-0/doctor.sh
+sudo bash phases/phase-0/bootstrap.sh
+bash phases/phase-0/validate.sh
 ```
 
 Next phase after this is Phase 1A: run Gitea and PostgreSQL with Docker Compose.
