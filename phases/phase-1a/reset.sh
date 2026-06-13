@@ -17,21 +17,22 @@ remove_path() {
     return 0
   fi
 
-  echo "Need sudo to remove container-owned data: $path"
-  sudo rm -rf "$path"
+  if sudo rm -rf "$path" 2>/dev/null; then
+    return 0
+  fi
+
+  echo "Could not remove Phase 1A data: $path"
+  echo
+  echo "Try running the reset again, or check file permissions."
+  exit 1
 }
 
 if [ "${1:-}" != "--yes" ]; then
-  echo "This will reset Phase 1A data and generate a new database password."
+  echo "This will reset Phase 1A and start it from zero."
   echo
-  echo "It removes:"
-  echo "- $RUNTIME_DIR/data/postgres"
-  echo "- $RUNTIME_DIR/data/gitea"
-  echo "- $ENV_FILE"
+  echo "It removes the Phase 1A database, Gitea files, and generated environment file."
   echo
-  echo "Some files may belong to containers, so the reset may ask for sudo."
-  echo
-  echo "Use this only before the real Gitea setup, or when you intentionally want to start over."
+  echo "Use this only before real repositories or users exist, or when you intentionally want to start over."
   echo
   echo "Run:"
   echo
@@ -39,17 +40,22 @@ if [ "${1:-}" != "--yes" ]; then
   exit 1
 fi
 
+echo "Resetting Phase 1A services..."
+
 if [ -f "$ENV_FILE" ]; then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p ektisis-phase-1a down || true
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p ektisis-phase-1a down >/dev/null 2>&1 || true
 else
-  docker compose -f "$COMPOSE_FILE" -p ektisis-phase-1a down || true
+  docker compose -f "$COMPOSE_FILE" -p ektisis-phase-1a down >/dev/null 2>&1 || true
 fi
+
+echo "Removing Phase 1A data..."
 
 remove_path "$RUNTIME_DIR/data/postgres"
 remove_path "$RUNTIME_DIR/data/gitea"
 remove_path "$RUNTIME_DIR/data/gitea-config"
 rm -f "$ENV_FILE"
 
+echo
 echo "Phase 1A was reset."
 echo
 echo "Run again:"
