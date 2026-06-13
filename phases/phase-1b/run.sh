@@ -5,15 +5,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="$HOME/ektisis-runtime/compose/phase-1a/.env"
 WORK_DIR="$HOME/ektisis-runtime/projects/phase-1b-auto-smoke"
 RUN_ID="$(date +%s)"
+TEMP_USER="ektisis-smoke-user-${RUN_ID}"
+TEMP_EMAIL="${TEMP_USER}@example.local"
+TEMP_PASS="$(openssl rand -base64 24 | tr -d '\n' | tr '/+' 'Aa')"
 TEMP_ORG="ektisis-smoke-${RUN_ID}"
 TEMP_REPO="git-flow-check"
 TEST_FILE="phase-1b-smoke-test.txt"
 TARGET_DIR="$WORK_DIR/$TEMP_ORG/$TEMP_REPO"
-CREATED_REPO=0
+CREATED_USER=0
 CREATED_ORG=0
-GITEA_USERNAME=""
-GITEA_CREDENTIAL=""
+CREATED_REPO=0
 GITEA_BASE_URL=""
+ASKPASS_FILE=""
+
+run_gitea_cli() {
+  docker exec -u git ektisis-gitea gitea --config /data/gitea/conf/app.ini "$@"
+}
 
 api_call() {
   local method="$1"
@@ -24,7 +31,7 @@ api_call() {
   body_file="$(mktemp)"
 
   if [ -n "$data" ]; then
-    status="$(curl -sS -u "$GITEA_USERNAME:$GITEA_CREDENTIAL" \
+    status="$(curl -sS -u "$TEMP_USER:$TEMP_PASS" \
       -H 'Content-Type: application/json' \
       -X "$method" \
       -d "$data" \
@@ -32,7 +39,7 @@ api_call() {
       -w '%{http_code}' \
       "$GITEA_BASE_URL/api/v1$path" || true)"
   else
-    status="$(curl -sS -u "$GITEA_USERNAME:$GITEA_CREDENTIAL" \
+    status="$(curl -sS -u "$TEMP_USER:$TEMP_PASS" \
       -X "$method" \
       -o "$body_file" \
       -w '%{http_code}' \
@@ -63,8 +70,20 @@ cleanup() {
     esac
   fi
 
+  if [ "$CREATED_USER" -eq 1 ]; then
+    if run_gitea_cli admin user delete --username "$TEMP_USER" --purge >/dev/null 2>&1; then
+      echo "OK: temporary Gitea user removed."
+    else
+      echo "WARN: temporary Gitea user cleanup did not complete automatically."
+    fi
+  fi
+
   rm -rf "$WORK_DIR/$TEMP_ORG"
   echo "OK: temporary local clone removed."
+
+  if [ -n "$ASKPASS_FILE" ]; then
+    rm -f "$ASKPASS_FILE"
+  fi
 }
 trap cleanup EXIT
 
@@ -110,22 +129,24 @@ if ! bash phases/phase-1b/validate.sh; then
 fi
 
 echo
-echo "Step 3: authenticate with Gitea."
-read -r -p "Gitea username: " GITEA_USERNAME
-read -r -s -p "Gitea password or token: " GITEA_CREDENTIAL
-echo
-
-if [ -z "$GITEA_USERNAME" ] || [ -z "$GITEA_CREDENTIAL" ]; then
-  echo "Gitea username and credential are required."
+echo "Step 3: create temporary Gitea user for automation."
+if ! run_gitea_cli admin user create \
+  --username "$TEMP_USER" \
+  --password "$TEMP_PASS" \
+  --email "$TEMP_EMAIL" \
+  --admin \
+  --must-change-password=false >/dev/null; then
+  echo "Could not create the temporary Gitea user."
   exit 1
 fi
+CREATED_USER=1
+echo "OK: temporary Gitea user created."
 
 echo
 echo "Step 4: create temporary organization and repository."
 org_status="$(api_call POST "/orgs" "{\"username\":\"$TEMP_ORG\",\"full_name\":\"Ektisis Phase 1B Smoke Test\",\"visibility\":\"private\"}")"
 if [ "$org_status" != "201" ]; then
   echo "Could not create the temporary organization."
-  echo "Check that the Gitea user can create organizations."
   exit 1
 fi
 CREATED_ORG=1
@@ -133,7 +154,6 @@ CREATED_ORG=1
 repo_status="$(api_call POST "/orgs/$TEMP_ORG/repos" "{\"name\":\"$TEMP_REPO\",\"private\":true,\"auto_init\":true,\"default_branch\":\"main\"}")"
 if [ "$repo_status" != "201" ]; then
   echo "Could not create the temporary repository."
-  echo "Check that the Gitea user can create repositories inside the temporary organization."
   exit 1
 fi
 CREATED_REPO=1
@@ -149,22 +169,20 @@ ASKPASS_FILE="$(mktemp)"
 cat > "$ASKPASS_FILE" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
-  *Username*) printf '%s\n' "$GITEA_USERNAME" ;;
-  *Password*) printf '%s\n' "$GITEA_CREDENTIAL" ;;
+  *Username*) printf '%s\n' "$TEMP_USER" ;;
+  *Password*) printf '%s\n' "$TEMP_PASS" ;;
   *) printf '\n' ;;
 esac
 EOF
 chmod 700 "$ASKPASS_FILE"
 
-export GITEA_USERNAME
-export GITEA_CREDENTIAL
+export TEMP_USER
+export TEMP_PASS
 export GIT_ASKPASS="$ASKPASS_FILE"
 export GIT_TERMINAL_PROMPT=0
 
 if ! git clone "$REPO_URL" "$TARGET_DIR"; then
-  rm -f "$ASKPASS_FILE"
   echo "Clone failed."
-  echo "Check that the Gitea credential can read the temporary repository."
   exit 1
 fi
 
@@ -181,18 +199,15 @@ git add "$TEST_FILE"
 git commit -m "test: validate automated Phase 1B Git flow"
 
 if ! git push; then
-  rm -f "$ASKPASS_FILE"
   echo "Push failed."
-  echo "Check that the Gitea credential can write to the temporary repository."
   exit 1
 fi
-
-rm -f "$ASKPASS_FILE"
 
 echo
 echo "Phase 1B automated smoke test passed."
 echo
 echo "Validated:"
+echo "- temporary Gitea user creation"
 echo "- temporary organization creation"
 echo "- temporary repository creation"
 echo "- Git clone"
