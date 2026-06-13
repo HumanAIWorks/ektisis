@@ -4,14 +4,14 @@ This guide is for Oracle Cloud Infrastructure, also called OCI.
 
 OCI is Oracle's cloud platform. When you create a VM instance there, it can have its own firewall rules outside the machine.
 
-This path was validated with Ektisis Phase 1A on OCI in the Brazil East, Sao Paulo region.
+This guide uses placeholders and documentation-only examples. Do not copy example IP addresses as-is.
 
 ## Symptom
 
 Gitea is running, but this does not open in your browser:
 
 ```txt
-http://PUBLIC_IP:3000/
+http://YOUR_SERVER_IP:3000/
 ```
 
 ## First check
@@ -34,18 +34,18 @@ If you see pages like `DNS management`, `Private resolvers`, or `Private zones`,
 
 DNS is the system that translates names like `example.com` into IP addresses. Here we are not fixing a name yet; we are opening a network port.
 
-## Validated path through the subnet
+## Path through the subnet
 
-This is the path that worked during the Phase 1A OCI validation.
+Use this path in the OCI Console:
 
 1. Open OCI Console.
 2. Go to `Networking`.
 3. Open `Virtual cloud networks`.
-4. Click your VCN, for example `vcn-ektisis`.
+4. Click your VCN, for example `your-vcn`.
 5. Open the `Subnets` tab.
-6. Click your public subnet, for example `subnet-ektisis`.
+6. Click your public subnet, for example `your-public-subnet`.
 7. Open the `Security` tab.
-8. In `Security Lists`, click the attached security list, for example `Default Security List for vcn-ektisis`.
+8. In `Security Lists`, click the attached security list, for example `Default Security List for your-vcn`.
 9. Open the `Security rules` tab.
 10. Find the `Ingress Rules` section.
 11. Click `Add Ingress Rules`.
@@ -99,14 +99,16 @@ Destination Port Range: 3000
 After adding the rule, open:
 
 ```txt
-http://PUBLIC_IP:3000/
+http://YOUR_SERVER_IP:3000/
 ```
 
-Example:
+Example using a documentation-only IP:
 
 ```txt
-http://137.131.191.182:3000/
+http://203.0.113.10:3000/
 ```
+
+Replace the IP with your server IP. The example IP is reserved for documentation and should not be used as-is.
 
 If it opens, the OCI network rule is working.
 
