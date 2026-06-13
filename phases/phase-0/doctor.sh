@@ -16,7 +16,7 @@ print_command() {
   echo
   echo "$1"
   echo
-  echo "  $2"
+  echo "$2"
 }
 
 if [ -f /etc/os-release ]; then
