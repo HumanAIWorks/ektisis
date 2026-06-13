@@ -6,37 +6,45 @@ This project treats the repository as the source of truth for executable steps.
 
 If a person needs to run a command on a machine, click something in a stack component, change a setting, or follow a manual operational step, that step must be documented in the Ektisis repository before it is treated as official.
 
-The chat can be used for:
+The chat can be used for planning, analysis, troubleshooting, deciding the next change, and explaining failures.
 
-- planning
-- analysis
-- troubleshooting
-- deciding the next change
-- explaining failures
+The repository must contain commands, expected outputs, manual browser steps, configuration values, validation criteria, and troubleshooting paths.
 
-The repository must contain:
+## Documentation style
 
-- commands to run
-- expected outputs
-- manual browser steps
-- configuration values to use
-- validation criteria
-- troubleshooting paths
+Operational documentation must be complete, but not complex.
+
+Each phase README must be a linear step-by-step guide that a person can follow from top to bottom.
+
+Avoid structures that interrupt the flow:
+
+- a separate `Before you start` section after the guide has already begun
+- a high-level run order followed later by a different detailed order
+- instructions like `create the repository in the browser` without explaining how to open the service and what to click
+
+If something is required before the main work, it must be Step 1.
+
+Each step should explain:
+
+- what will be done
+- why it is being done
+- the exact command or browser action
+- the expected result
+
+Troubleshooting should work like a short detour:
+
+1. stop the current step
+2. follow the linked troubleshooting section or document
+3. return to the step that failed
+4. continue from the next step
+
+The reader should never need to guess which README, script, screen, URL, or command is the current source of truth.
 
 ## Public documentation safety
 
 Public documentation must use placeholders or reserved documentation examples.
 
-Do not publish real values such as:
-
-- real public IP addresses
-- real local IP addresses
-- real hostnames
-- real local usernames
-- passwords
-- tokens
-- private keys
-- real runtime logs with environment-specific identifiers
+Do not publish real environment values such as real IP addresses, real hostnames, real local usernames, real credentials, or real runtime logs with environment-specific identifiers.
 
 Use placeholders instead:
 
