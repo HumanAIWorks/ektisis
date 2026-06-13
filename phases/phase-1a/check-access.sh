@@ -5,6 +5,7 @@ RUNTIME_DIR="${EKTISIS_RUNTIME_DIR:-$HOME/ektisis-runtime}"
 ENV_FILE="$RUNTIME_DIR/compose/phase-1a/.env"
 HTTP_PORT="3000"
 SSH_PORT="2222"
+LOCAL_FIREWALL_OK=0
 
 load_env_value() {
   local key="$1"
@@ -94,6 +95,7 @@ UFW_STATUS="$(sudo -n ufw status 2>/dev/null || ufw status 2>/dev/null || true)"
 if printf '%s' "$UFW_STATUS" | grep -qi 'Status: active'; then
   if printf '%s' "$UFW_STATUS" | grep -qE "(^| )$HTTP_PORT/tcp|$HTTP_PORT"; then
     echo "OK: Local firewall appears to allow port $HTTP_PORT."
+    LOCAL_FIREWALL_OK=1
   else
     echo "WARN: Local firewall is active and port $HTTP_PORT is not clearly allowed."
     echo
@@ -103,11 +105,12 @@ if printf '%s' "$UFW_STATUS" | grep -qi 'Status: active'; then
   fi
 else
   echo "OK: Local firewall is not active or could not be checked."
+  LOCAL_FIREWALL_OK=1
 fi
 
 echo
 if [ "$PUBLIC_EGRESS_IP" != "not detected" ]; then
-  echo "Try this URL from your browser:"
+  echo "Browser URL to test:"
   echo
   echo "http://$PUBLIC_EGRESS_IP:$HTTP_PORT/"
 else
@@ -115,8 +118,25 @@ else
 fi
 
 echo
+if [ "$LOCAL_FIREWALL_OK" -eq 1 ]; then
+  cat << EOF_READY
+Machine-side access looks ready.
+
+This means Gitea works inside the server and the local Linux firewall appears to allow the port.
+
+This script cannot fully prove that your browser can reach the server from outside the cloud provider. That final check must be done by opening the URL in your browser.
+EOF_READY
+else
+  cat << EOF_WARN
+Machine-side access is not fully ready yet.
+
+Open the local firewall first, then run this check again.
+EOF_WARN
+fi
+
+echo
 cat << EOF_HELP
-If Gitea works locally but does not open in your browser, the most common cause is an external firewall.
+If the browser still does not open Gitea, the most common remaining cause is an external firewall.
 
 A firewall is a rule system that decides which network connections are allowed.
 A port is a numbered door used by a service; here, Gitea uses port $HTTP_PORT for the web page.
