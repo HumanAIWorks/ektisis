@@ -45,16 +45,31 @@ if [ -z "$GITEA_USERNAME" ] || [ -z "$GITEA_PASSWORD" ]; then
 fi
 
 REPO_URL="${GITEA_BASE_URL}/${GITEA_ORG}/${GITEA_REPO}.git"
-SAFE_REPO_URL="${GITEA_BASE_URL}/${GITEA_ORG}/${GITEA_REPO}.git"
-AUTH_REPO_URL="${GITEA_BASE_URL#http://}"
-AUTH_REPO_URL="http://${GITEA_USERNAME}:${GITEA_PASSWORD}@${AUTH_REPO_URL}/${GITEA_ORG}/${GITEA_REPO}.git"
-
 TARGET_DIR="${WORK_DIR}/${GITEA_REPO}"
 rm -rf "$TARGET_DIR"
 
+ASKPASS_FILE="$(mktemp)"
+cleanup() {
+  rm -f "$ASKPASS_FILE"
+}
+trap cleanup EXIT
+
+cat > "$ASKPASS_FILE" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+  *Username*) echo "$GITEA_USERNAME" ;;
+  *Password*) echo "$GITEA_PASSWORD" ;;
+  *) echo "" ;;
+esac
+EOF
+chmod 700 "$ASKPASS_FILE"
+
+export GIT_ASKPASS="$ASKPASS_FILE"
+export GIT_TERMINAL_PROMPT=0
+
 echo
-echo "Cloning: $SAFE_REPO_URL"
-if ! git clone "$AUTH_REPO_URL" "$TARGET_DIR"; then
+echo "Cloning: $REPO_URL"
+if ! git clone "$REPO_URL" "$TARGET_DIR"; then
   echo
   echo "Clone failed."
   echo
