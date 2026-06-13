@@ -7,13 +7,15 @@ Use this checklist after the Gitea installation screen is complete.
 Open:
 
 ```txt
-http://SERVER_PUBLIC_IP:3000/
+http://YOUR_SERVER_IP:3000/
 ```
 
-For the validated OCI test, this was:
+Use your own server IP.
 
-```txt
-http://137.131.191.182:3000/
+If you do not know the address, run:
+
+```bash
+bash phases/phase-1a/check-access.sh
 ```
 
 If it opens, browser access is working.
@@ -47,7 +49,7 @@ After users or repositories exist, do not run:
 bash phases/phase-1a/reset.sh --yes
 ```
 
-That command deletes the Phase 1A database and Gitea files.
+That command removes the Phase 1A database and Gitea files.
 
 Use it only before real data exists, or when you intentionally want to start over.
 
