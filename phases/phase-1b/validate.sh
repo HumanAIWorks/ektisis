@@ -76,11 +76,7 @@ echo "FAIL: $FAIL"
 echo
 
 if [ "$FAIL" -eq 0 ]; then
-  echo "Phase 1B validation passed. Ready for the automated Gitea smoke test."
-  echo
-  echo "Run next:"
-  echo
-  echo "bash phases/phase-1b/run.sh"
+  echo "Phase 1B validation passed."
   exit 0
 fi
 
