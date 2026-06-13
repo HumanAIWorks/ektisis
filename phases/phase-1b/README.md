@@ -27,56 +27,9 @@ An organization is a group inside Gitea where related repositories can live toge
 
 A smoke test is a small test that confirms the basic flow works before building more things on top.
 
-## Step 1 — Update the local copy of Ektisis
+## Step 1 — Confirm Phase 1A is still healthy
 
-Run this on the server from the repository directory.
-
-```bash
-cd ~/ektisis
-git pull
-```
-
-Why this step exists:
-
-- it makes sure you are using the latest scripts and documentation
-- it prevents following old instructions from a previous commit
-
-Expected result:
-
-```txt
-Already up to date.
-```
-
-or Git downloads newer files.
-
-Then keep following this same README.
-
-## Step 2 — Check public documentation safety
-
-Run:
-
-```bash
-bash scripts/check-public-docs.sh
-```
-
-Why this step exists:
-
-- this repository is public during development
-- the check helps catch accidental exposure of real environment values before continuing
-
-Expected result:
-
-```txt
-Public documentation exposure check passed.
-```
-
-If this step fails, stop here. Fix the reported file in the repository, pull the fix, and run this step again.
-
-Then return to Step 2.
-
-## Step 3 — Confirm Phase 1A is still healthy
-
-Run:
+Run this from the Ektisis repository directory on the server:
 
 ```bash
 bash phases/phase-1a/validate.sh
@@ -107,11 +60,11 @@ docs/troubleshooting/local-network.md
 docs/troubleshooting/generic-vps.md
 ```
 
-After fixing the problem, return to Step 3.
+After fixing the problem, return to Step 1.
 
-## Step 4 — Validate Phase 1B prerequisites
+## Step 2 — Validate Phase 1B prerequisites
 
-Run:
+Run this from the Ektisis repository directory on the server:
 
 ```bash
 bash phases/phase-1b/validate.sh
@@ -129,13 +82,13 @@ Expected result:
 Phase 1B validation passed. Ready for the Git smoke test.
 ```
 
-If this step fails, read the script output, fix the reported issue, and return to Step 4.
+If this step fails, read the script output, fix the reported issue, and return to Step 2.
 
-## Step 5 — Open Gitea in the browser
+## Step 3 — Open Gitea in the browser
 
 Open a browser on your computer.
 
-Use the URL printed by Step 3.
+Use the URL printed by Step 1.
 
 The URL format is:
 
@@ -161,9 +114,9 @@ Expected result:
 - the Gitea web interface opens
 - you can sign in with the administrator account created during Phase 1A
 
-If the browser does not open Gitea, return to Step 3 and follow the troubleshooting link suggested by `check-access.sh`.
+If the browser does not open Gitea, return to Step 1 and follow the troubleshooting link suggested by `check-access.sh`.
 
-## Step 6 — Sign in to Gitea
+## Step 4 — Sign in to Gitea
 
 In the Gitea browser page, click:
 
@@ -177,7 +130,7 @@ Depending on the interface language, this may appear as:
 Entrar
 ```
 
-Enter the administrator username and password created during Phase 1A.
+Enter the administrator credentials created during Phase 1A.
 
 Why this step exists:
 
@@ -189,11 +142,11 @@ Expected result:
 - you are logged in
 - the top-right user menu appears
 
-If sign-in fails, confirm you are using the Gitea user password, not the PostgreSQL password and not the Linux password.
+If sign-in fails, confirm you are using the Gitea credentials, not the database credentials and not the Linux credentials.
 
-Then return to Step 6.
+Then return to Step 4.
 
-## Step 7 — Create the organization
+## Step 5 — Create the organization
 
 In Gitea, use the top-right menu.
 
@@ -230,9 +183,9 @@ Expected result:
 - an organization named `ektisis` exists in Gitea
 - the organization page opens after creation
 
-If the organization already exists, open it and continue to Step 8.
+If the organization already exists, open it and continue to Step 6.
 
-## Step 8 — Create the smoke test repository
+## Step 6 — Create the smoke test repository
 
 Inside the `ektisis` organization page, create a new repository.
 
@@ -281,11 +234,11 @@ http://YOUR_SERVER_IP:3000/ektisis/phase-1b-smoke-test
 
 If the repository was created under your personal user instead of the organization, create it again under the `ektisis` organization.
 
-Then return to Step 8 and confirm the repository path.
+Then return to Step 6 and confirm the repository path.
 
-## Step 9 — Run the Git smoke test
+## Step 7 — Run the Git smoke test
 
-Return to the server terminal and run:
+Return to the server terminal and run this from the Ektisis repository directory:
 
 ```bash
 bash phases/phase-1b/smoke-test-http.sh
@@ -295,12 +248,12 @@ The script asks for:
 
 ```txt
 Gitea username
-Gitea password or token
+Gitea credential
 Organization
 Repository
 ```
 
-Use your Gitea username and password.
+Use your Gitea username and credential.
 
 When asked for organization and repository, press Enter to accept the defaults if you used the recommended names.
 
@@ -316,11 +269,11 @@ Expected result:
 Phase 1B smoke test completed.
 ```
 
-If the script says `Repository not found`, go to the troubleshooting section `Repository not found`, then return to Step 9.
+If the script says `Repository not found`, go to the troubleshooting section `Repository not found`, then return to Step 7.
 
-If authentication fails, go to the troubleshooting section `Authentication failed`, then return to Step 9.
+If authentication fails, go to the troubleshooting section `Authentication failed`, then return to Step 7.
 
-## Step 10 — Confirm the pushed file in the browser
+## Step 8 — Confirm the pushed file in the browser
 
 Open the test repository in Gitea.
 
@@ -345,11 +298,11 @@ Expected result:
 - the file appears in the repository file list
 - opening the file shows the smoke test timestamp
 
-If the file does not appear, refresh the page. If it still does not appear, return to Step 9 and copy the exact script output for troubleshooting.
+If the file does not appear, refresh the page. If it still does not appear, return to Step 7 and copy the exact script output for troubleshooting.
 
 ## Troubleshooting: Repository not found
 
-Use this section only if Step 9 fails with:
+Use this section only if Step 7 fails with:
 
 ```txt
 Repository not found
@@ -379,23 +332,21 @@ Common causes:
 
 Fix the issue in Gitea.
 
-Then return to Step 9.
+Then return to Step 7.
 
 ## Troubleshooting: Authentication failed
 
-Use this section only if Step 9 fails with an authentication error.
+Use this section only if Step 7 fails with an authentication error.
 
 Check:
 
 - the username is your Gitea username, not the Linux username
-- the password is the Gitea password, not the PostgreSQL password
+- the credential belongs to Gitea, not the database or Linux user
 - the user has access to the repository
-
-PostgreSQL is the database behind Gitea. Its password is not used for Git clone or push.
 
 Fix the issue.
 
-Then return to Step 9.
+Then return to Step 7.
 
 ## Phase 1B completion criteria
 
