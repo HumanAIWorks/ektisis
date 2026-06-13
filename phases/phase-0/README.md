@@ -186,6 +186,8 @@ Run:
 bash phases/phase-0/validate.sh
 ```
 
+Do not run `validate.sh` with sudo. Phase 0 expects Docker to work for the normal admin user without sudo.
+
 What it checks:
 
 - OS is supported
@@ -203,8 +205,19 @@ What it checks:
 What to do after it runs:
 
 - If validation passes, continue to Step 4.
-- If validation fails because Docker requires sudo, reconnect to the server and run validation again.
+- If validation fails because Docker requires sudo, close the SSH session and connect again.
+- After reconnecting, return to the repository folder and run `validate.sh` again.
+- If you cannot reconnect yet, try `newgrp docker` and run `validate.sh` again.
 - If validation still fails, do not continue to Phase 1A. Fix Phase 0 first.
+
+Example after Docker group changes:
+
+```bash
+exit
+ssh your_user@SERVER_IP
+cd ektisis
+bash phases/phase-0/validate.sh
+```
 
 You may run `validate.sh` again at any time.
 
@@ -311,7 +324,7 @@ cd ektisis
 bash phases/phase-0/doctor.sh
 sudo bash phases/phase-0/bootstrap.sh
 
-# reconnect if Docker was installed for the first time
+# reconnect if Docker was installed for the first time or Docker requires sudo
 
 bash phases/phase-0/validate.sh
 bash phases/phase-0/generate-machine-md.sh
