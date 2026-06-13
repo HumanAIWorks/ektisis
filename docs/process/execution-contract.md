@@ -40,6 +40,20 @@ Troubleshooting should work like a short detour:
 
 The reader should never need to guess which README, script, screen, URL, or command is the current source of truth.
 
+## Tutorial flow versus validation flow
+
+Public tutorials are for a person starting from a known version of the repository and following it from the beginning.
+
+Do not make `git pull` part of normal phase execution.
+
+Updating the local clone is part of the development and validation loop used while Ektisis is being built. It is not a normal user step inside each phase.
+
+A phase README should assume the user already has the repository available from the initial setup path. If a later update mechanism is needed, it should be designed explicitly in a future phase instead of being scattered through the docs.
+
+Commands in public tutorials should avoid depending on the reader being in a hidden or ambiguous directory. Prefer commands that either say exactly which directory they must be run from, or use paths that make the location clear.
+
+Do not force a full rewrite of older docs only for path style, but new and revised docs should follow this rule.
+
 ## Public documentation safety
 
 Public documentation must use placeholders or reserved documentation examples.
@@ -61,17 +75,6 @@ For documentation-only public IP examples, use reserved documentation ranges suc
 ```txt
 203.0.113.10
 ```
-
-## Before executing a phase
-
-Before running a phase, update the repository and read the phase README:
-
-```bash
-git pull
-cat phases/PHASE_NAME/README.md
-```
-
-Then follow the README, not ad hoc chat instructions.
 
 ## Before publishing or recreating the repository
 
