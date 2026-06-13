@@ -30,7 +30,7 @@ check_pattern() {
 check_pattern "known real public IP fragments" '137\.131\.|177\.76\.'
 check_pattern "known real local IP" '192\.168\.15\.12'
 check_pattern "known personal/local hostnames" 'fabrica-local|ektisis-vnic'
-check_pattern "known local usernames" '(^|[^A-Za-z0-9_-])(mario|ubuntu)([^A-Za-z0-9_-]|$)'
+check_pattern "known personal local usernames" '(^|[^A-Za-z0-9_-])mario([^A-Za-z0-9_-]|$)'
 
 # IPv4 literals are allowed only for explicit placeholders and infrastructure constants.
 IP_RESULTS="$(grep -RInE '([0-9]{1,3}\.){3}[0-9]{1,3}' \
