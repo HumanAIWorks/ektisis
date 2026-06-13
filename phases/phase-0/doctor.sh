@@ -6,12 +6,18 @@ echo "== Ektisis Phase 0 Doctor =="
 FAIL=0
 WARN=0
 PASS=0
-ACTIONS=()
+NOTES=()
 
 ok() { echo "OK: $1"; PASS=$((PASS+1)); }
-warn() { echo "WARN: $1"; WARN=$((WARN+1)); ACTIONS+=("$2"); }
-fail() { echo "FAIL: $1"; FAIL=$((FAIL+1)); ACTIONS+=("$2"); }
-add_action() { ACTIONS+=("$1"); }
+warn() { echo "WARN: $1"; WARN=$((WARN+1)); NOTES+=("$2"); }
+fail() { echo "FAIL: $1"; FAIL=$((FAIL+1)); NOTES+=("$2"); }
+
+print_command() {
+  echo
+  echo "$1"
+  echo
+  echo "  $2"
+}
 
 if [ -f /etc/os-release ]; then
   . /etc/os-release
@@ -28,23 +34,23 @@ hostname >/dev/null 2>&1 && ok "hostname available" || fail "hostname unavailabl
 hostname -I >/dev/null 2>&1 && ok "IP command available" || warn "IP command unavailable" "Check network configuration. The machine must be reachable over the network before Phase 1A."
 
 systemctl is-active ssh >/dev/null 2>&1 || systemctl is-active sshd >/dev/null 2>&1 \
-  && ok "SSH active" || warn "SSH not active" "Run: sudo bash phases/phase-0/bootstrap.sh. It installs/enables OpenSSH."
+  && ok "SSH active" || warn "SSH not active" "The baseline step installs and enables OpenSSH."
 
 if command -v docker >/dev/null 2>&1; then
   ok "docker command found"
   if docker ps >/dev/null 2>&1; then
     ok "docker works without sudo"
   else
-    warn "docker may require sudo or group membership" "Run: sudo bash phases/phase-0/bootstrap.sh. If Docker was just installed, reconnect or run: newgrp docker."
+    warn "docker may require sudo or group membership" "The baseline step configures Docker group access. If Docker was just installed, reconnect or run: newgrp docker."
   fi
 else
-  warn "docker not installed" "Run: sudo bash phases/phase-0/bootstrap.sh. It installs Docker from the official Docker APT repository."
+  warn "docker not installed" "The baseline step installs Docker."
 fi
 
 if docker compose version >/dev/null 2>&1; then
   ok "docker compose works"
 else
-  warn "docker compose not available" "Run: sudo bash phases/phase-0/bootstrap.sh. It installs the Docker Compose plugin."
+  warn "docker compose not available" "The baseline step installs the Docker Compose plugin."
 fi
 
 df -h / /var /home 2>/dev/null || df -h /
@@ -57,7 +63,7 @@ echo "FAIL: $FAIL"
 echo
 if [ "$FAIL" -gt 0 ]; then
   echo "Result: BLOCKED"
-  echo "Do not continue to bootstrap until the FAIL items are fixed."
+  echo "Fix the FAIL items before continuing."
 elif [ "$WARN" -gt 0 ]; then
   echo "Result: NEEDS BASELINE"
   echo "Warnings are expected on a fresh machine. Continue with the baseline step."
@@ -66,27 +72,26 @@ else
   echo "This machine already looks prepared. Run validation next."
 fi
 
-# Print unique next actions while preserving order.
-if [ "${#ACTIONS[@]}" -gt 0 ]; then
+# Print unique notes while preserving order.
+if [ "${#NOTES[@]}" -gt 0 ]; then
   echo
-  echo "Next actions:"
+  echo "Notes:"
   seen=""
-  for action in "${ACTIONS[@]}"; do
+  for note in "${NOTES[@]}"; do
     case "$seen" in
-      *"|$action|"*) ;;
+      *"|$note|"*) ;;
       *)
-        echo "- $action"
-        seen="$seen|$action|"
+        echo "- $note"
+        seen="$seen|$note|"
         ;;
     esac
   done
 fi
 
-echo
 if [ "$FAIL" -eq 0 ] && [ "$WARN" -gt 0 ]; then
-  echo "Run next: sudo bash phases/phase-0/bootstrap.sh"
+  print_command "Run next:" "sudo bash phases/phase-0/bootstrap.sh"
 elif [ "$FAIL" -eq 0 ]; then
-  echo "Run next: bash phases/phase-0/validate.sh"
+  print_command "Run next:" "bash phases/phase-0/validate.sh"
 fi
 
 [ "$FAIL" -eq 0 ]
