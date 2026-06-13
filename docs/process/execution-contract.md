@@ -44,7 +44,7 @@ The reader should never need to guess which README, script, screen, URL, or comm
 
 Public tutorials are for a person starting from a known version of the repository and following it from the beginning.
 
-Do not make `git pull` part of normal phase execution.
+Do not make repository update commands part of normal phase execution.
 
 Updating the local clone is part of the development and validation loop used while Ektisis is being built. It is not a normal user step inside each phase.
 
