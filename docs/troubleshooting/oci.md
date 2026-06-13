@@ -4,6 +4,8 @@ This guide is for Oracle Cloud Infrastructure, also called OCI.
 
 OCI is Oracle's cloud platform. When you create a VM instance there, it can have its own firewall rules outside the machine.
 
+This path was validated with Ektisis Phase 1A on OCI in the Brazil East, Sao Paulo region.
+
 ## Symptom
 
 Gitea is running, but this does not open in your browser:
@@ -22,7 +24,7 @@ bash phases/phase-1a/check-access.sh
 
 If it says Gitea responds inside the machine, the application is probably fine.
 
-The likely missing step is allowing port `3000` in OCI.
+If it also says the local firewall allows port `3000`, then the machine is ready. The remaining step is usually in the OCI Console.
 
 A port is a numbered door used by a service. Gitea uses port `3000` for the web page in Phase 1A.
 
@@ -32,9 +34,9 @@ If you see pages like `DNS management`, `Private resolvers`, or `Private zones`,
 
 DNS is the system that translates names like `example.com` into IP addresses. Here we are not fixing a name yet; we are opening a network port.
 
-## Path through the subnet
+## Validated path through the subnet
 
-This is the easiest path from the screens shown during validation.
+This is the path that worked during the Phase 1A OCI validation.
 
 1. Open OCI Console.
 2. Go to `Networking`.
@@ -42,10 +44,11 @@ This is the easiest path from the screens shown during validation.
 4. Click your VCN, for example `vcn-ektisis`.
 5. Open the `Subnets` tab.
 6. Click your public subnet, for example `subnet-ektisis`.
-7. On the subnet page, find `Security Lists`.
-8. Open the security list attached to the subnet. It is usually named something like `Default Security List for vcn-ektisis`.
-9. Open `Ingress Rules`.
-10. Click `Add Ingress Rules`.
+7. Open the `Security` tab.
+8. In `Security Lists`, click the attached security list, for example `Default Security List for vcn-ektisis`.
+9. Open the `Security rules` tab.
+10. Find the `Ingress Rules` section.
+11. Click `Add Ingress Rules`.
 
 A VCN is a Virtual Cloud Network. It is the private network that contains your cloud server.
 
@@ -60,6 +63,8 @@ Ingress means traffic entering the server from outside.
 Suggested rule for testing:
 
 ```txt
+Stateless: No / unchecked
+Source Type: CIDR
 Source CIDR: 0.0.0.0/0
 IP Protocol: TCP
 Source Port Range: leave blank
@@ -72,6 +77,8 @@ CIDR is a way to describe a range of IP addresses. `0.0.0.0/0` means any IPv4 ad
 TCP is the network protocol used by web pages and SSH.
 
 Leave the source port blank because the browser can use different temporary ports when connecting to the server.
+
+You may already see a similar rule for SSH on port `22`. SSH is the secure terminal access used to connect to the server. This new rule does the same kind of opening, but for Gitea on port `3000`.
 
 ## If your instance uses a Network Security Group
 
@@ -95,11 +102,13 @@ After adding the rule, open:
 http://PUBLIC_IP:3000/
 ```
 
-For the current Phase 1A test, this looks like:
+Example:
 
 ```txt
 http://137.131.191.182:3000/
 ```
+
+If it opens, the OCI network rule is working.
 
 If it still does not open, run:
 
@@ -112,6 +121,12 @@ Then check that the local firewall allows port `3000`:
 ```bash
 sudo bash phases/phase-1a/open-local-firewall.sh
 ```
+
+## What check-access can and cannot prove
+
+`check-access.sh` can prove that Gitea works inside the machine and that the local Linux firewall appears to allow the port.
+
+It cannot fully prove that your browser, from outside OCI, can reach the service. That final confirmation must be done by opening the URL in a browser or by testing from another network.
 
 ## Security note
 
