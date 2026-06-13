@@ -17,7 +17,6 @@ It stores runtime files outside the repository:
 ~/ektisis-runtime/compose/phase-1a/.env
 ~/ektisis-runtime/data/postgres
 ~/ektisis-runtime/data/gitea
-~/ektisis-runtime/data/gitea-config
 ```
 
 ## What this phase does not do yet
@@ -33,6 +32,10 @@ It does not configure:
 
 Those come later.
 
+HTTPS is the secure version of HTTP. It encrypts traffic between the browser and the server.
+
+A reverse proxy is a front door service that receives web traffic and sends it to the right internal application.
+
 ## Ports
 
 Default ports:
@@ -42,7 +45,13 @@ Gitea HTTP: 3000
 Gitea SSH: 2222
 ```
 
-On a cloud VPS, the provider firewall/security list must allow port `3000` before Gitea is reachable from your browser.
+A port is a numbered door used by a service. Here, Gitea uses port `3000` for the web page.
+
+On a cloud VPS, the provider firewall may also need to allow port `3000` before Gitea is reachable from your browser.
+
+VPS means Virtual Private Server. It is a rented Linux server running in a provider's datacenter.
+
+A firewall is a rule system that decides which connections are allowed.
 
 ## Run
 
@@ -63,6 +72,26 @@ Example:
 ```txt
 http://SERVER_PUBLIC_IP:3000/
 ```
+
+If the browser does not open Gitea, run:
+
+```bash
+bash phases/phase-1a/check-access.sh
+```
+
+This script checks whether Gitea works inside the machine and points you to the most likely documentation page.
+
+## Open the local firewall
+
+If the access check says the local firewall may be blocking port `3000`, run:
+
+```bash
+sudo bash phases/phase-1a/open-local-firewall.sh
+```
+
+This only changes the firewall inside the Linux machine. On a cloud VPS, you may still need to allow the same port in the provider dashboard.
+
+## First Gitea setup
 
 The first time you open Gitea, complete the install screen.
 
@@ -101,6 +130,22 @@ bash phases/phase-1a/validate.sh
 ```bash
 docker compose --env-file ~/ektisis-runtime/compose/phase-1a/.env -f phases/phase-1a/compose.yml -p ektisis-phase-1a logs --tail=100
 ```
+
+## Troubleshooting
+
+Start here:
+
+```txt
+docs/troubleshooting/README.md
+```
+
+For OCI specifically:
+
+```txt
+docs/troubleshooting/oci.md
+```
+
+OCI means Oracle Cloud Infrastructure, Oracle's cloud platform.
 
 ## Completion criteria
 
