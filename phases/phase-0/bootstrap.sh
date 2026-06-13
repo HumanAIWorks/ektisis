@@ -112,7 +112,12 @@ if [ -n "$TARGET_USER" ] && id "$TARGET_USER" >/dev/null 2>&1; then
   chmod 700 "$EKTISIS_RUNTIME_DIR/secrets"
   chown -R "$TARGET_USER:$TARGET_USER" "$EKTISIS_RUNTIME_DIR"
   echo "Ektisis runtime directory: $EKTISIS_RUNTIME_DIR"
-  echo "User '$TARGET_USER' added to docker group. Re-login may be required."
+
+  if sudo -u "$TARGET_USER" docker ps >/dev/null 2>&1; then
+    echo "Docker already works for user '$TARGET_USER' without sudo."
+  else
+    echo "User '$TARGET_USER' was added to the docker group. Reconnect or run: newgrp docker"
+  fi
 fi
 
 echo "Phase 0 bootstrap completed."
