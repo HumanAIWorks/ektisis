@@ -18,7 +18,7 @@ services:
       - ektisis
 
   gitea:
-    image: ${GITEA_IMAGE:-gitea/gitea:latest-rootless}
+    image: ${GITEA_IMAGE:-gitea/gitea:latest}
     container_name: ektisis-gitea
     restart: unless-stopped
     depends_on:
@@ -36,13 +36,13 @@ services:
       GITEA__server__ROOT_URL: ${GITEA_ROOT_URL:-http://localhost:3000/}
       GITEA__server__SSH_DOMAIN: ${GITEA_SSH_DOMAIN:-localhost}
       GITEA__server__SSH_PORT: ${GITEA_SSH_PORT:-2222}
+      GITEA__server__SSH_LISTEN_PORT: 2222
       GITEA__server__START_SSH_SERVER: "true"
     ports:
       - "${GITEA_HTTP_PORT:-3000}:3000"
       - "${GITEA_SSH_PORT:-2222}:2222"
     volumes:
-      - ${EKTISIS_RUNTIME_DIR:?EKTISIS_RUNTIME_DIR is required}/data/gitea:/var/lib/gitea
-      - ${EKTISIS_RUNTIME_DIR:?EKTISIS_RUNTIME_DIR is required}/data/gitea-config:/etc/gitea
+      - ${EKTISIS_RUNTIME_DIR:?EKTISIS_RUNTIME_DIR is required}/data/gitea:/data
     networks:
       - ektisis
 
