@@ -38,9 +38,9 @@ else
 fi
 
 if docker ps >/dev/null 2>&1; then
-  ok "Docker command works without sudo"
+  ok "Docker command works for the current user"
 else
-  fail "Docker command does not work without sudo"
+  fail "Docker command does not work for the current user"
 fi
 
 if docker ps --format '{{.Names}}' | grep -qx 'ektisis-gitea'; then
@@ -62,12 +62,12 @@ else
   fail "Gitea does not respond locally on port ${HTTP_PORT}"
 fi
 
-TEST_DIR="$HOME/ektisis-runtime/projects/phase-1b-smoke-test"
+TEST_DIR="$HOME/ektisis-runtime/projects/phase-1b-auto-smoke"
 mkdir -p "$TEST_DIR"
 if [ -d "$TEST_DIR" ]; then
-  ok "smoke test workspace exists: $TEST_DIR"
+  ok "automated smoke test workspace exists: $TEST_DIR"
 else
-  fail "could not create smoke test workspace"
+  fail "could not create automated smoke test workspace"
 fi
 
 echo
@@ -76,11 +76,11 @@ echo "FAIL: $FAIL"
 echo
 
 if [ "$FAIL" -eq 0 ]; then
-  echo "Phase 1B validation passed. Ready for the Git smoke test."
+  echo "Phase 1B validation passed. Ready for the automated Gitea smoke test."
   echo
   echo "Run next:"
   echo
-  echo "bash phases/phase-1b/smoke-test-http.sh"
+  echo "bash phases/phase-1b/run.sh"
   exit 0
 fi
 
