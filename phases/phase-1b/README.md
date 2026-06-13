@@ -40,16 +40,18 @@ Then open Gitea in your browser.
 The address is usually:
 
 ```txt
-http://SERVER_PUBLIC_IP:3000/
+http://YOUR_SERVER_IP:3000/
 ```
 
-On the OCI machine used during validation, the address looked like this:
+For documentation examples, this guide uses a reserved example IP:
 
 ```txt
-http://137.131.191.182:3000/
+http://203.0.113.10:3000/
 ```
 
-Use your own server IP. If you do not know the address, run:
+Use your own server IP. Do not copy the example IP.
+
+If you do not know the address, run:
 
 ```bash
 bash phases/phase-1a/check-access.sh
@@ -117,16 +119,16 @@ Open a browser on your computer and go to the Gitea URL.
 The URL format is:
 
 ```txt
-http://SERVER_PUBLIC_IP:3000/
+http://YOUR_SERVER_IP:3000/
 ```
 
-For example:
+For example, using a documentation-only IP:
 
 ```txt
-http://137.131.191.182:3000/
+http://203.0.113.10:3000/
 ```
 
-Replace the IP with your server IP.
+Replace the IP with your server IP. The example IP is reserved for documentation and should not be used as-is.
 
 If you are using a local machine at home or in the office, the address may be a local network IP instead:
 
