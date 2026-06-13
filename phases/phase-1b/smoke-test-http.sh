@@ -45,7 +45,9 @@ if [ -z "$GITEA_USERNAME" ] || [ -z "$GITEA_PASSWORD" ]; then
 fi
 
 REPO_URL="${GITEA_BASE_URL}/${GITEA_ORG}/${GITEA_REPO}.git"
+REPO_BROWSER_URL="${GITEA_BASE_URL}/${GITEA_ORG}/${GITEA_REPO}"
 TARGET_DIR="${WORK_DIR}/${GITEA_REPO}"
+TEST_FILE="phase-1b-smoke-test.txt"
 rm -rf "$TARGET_DIR"
 
 ASKPASS_FILE="$(mktemp)"
@@ -54,16 +56,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cat > "$ASKPASS_FILE" <<EOF
+cat > "$ASKPASS_FILE" <<'EOF'
 #!/usr/bin/env bash
-case "\$1" in
-  *Username*) echo "$GITEA_USERNAME" ;;
-  *Password*) echo "$GITEA_PASSWORD" ;;
-  *) echo "" ;;
+case "$1" in
+  *Username*) printf '%s\n' "$GITEA_USERNAME" ;;
+  *Password*) printf '%s\n' "$GITEA_PASSWORD" ;;
+  *) printf '\n' ;;
 esac
 EOF
 chmod 700 "$ASKPASS_FILE"
 
+export GITEA_USERNAME
+export GITEA_PASSWORD
 export GIT_ASKPASS="$ASKPASS_FILE"
 export GIT_TERMINAL_PROMPT=0
 
@@ -87,7 +91,6 @@ git config user.name "Ektisis Smoke Test"
 git config user.email "ektisis-smoke-test@example.local"
 
 STAMP="$(date '+%Y-%m-%d %H:%M:%S %z')"
-TEST_FILE="phase-1b-smoke-test.txt"
 {
   echo "Ektisis Phase 1B smoke test"
   echo "Generated at: $STAMP"
@@ -114,6 +117,13 @@ fi
 echo
 echo "Phase 1B smoke test completed."
 echo
-echo "Open this repository in the browser and confirm the file exists:"
+echo "Open this repository in the browser:"
 echo
-echo "${GITEA_BASE_URL}/${GITEA_ORG}/${GITEA_REPO}"
+echo "$REPO_BROWSER_URL"
+echo
+echo "Confirm that this file appears in the repository file list:"
+echo
+echo "$TEST_FILE"
+echo
+echo "If the file does not appear yet, refresh the browser page."
+echo "The script pushed the commit, but the browser UI does not refresh automatically."
