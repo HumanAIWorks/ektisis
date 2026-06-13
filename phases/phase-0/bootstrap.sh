@@ -6,7 +6,9 @@ INSTALL_DOCKER="${EKTISIS_INSTALL_DOCKER:-1}"
 EKTISIS_RUNTIME_DIR="${EKTISIS_RUNTIME_DIR:-}"
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Run as root, for example: sudo $0"
+  echo "Run as root, for example:"
+  echo
+  echo "sudo $0"
   exit 1
 fi
 
@@ -99,8 +101,14 @@ fi
 
 TARGET_USER="${SUDO_USER:-}"
 if [ -n "$TARGET_USER" ] && id "$TARGET_USER" >/dev/null 2>&1; then
-  usermod -aG docker "$TARGET_USER" || true
   TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+
+  USER_WAS_IN_DOCKER_GROUP=0
+  if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx docker; then
+    USER_WAS_IN_DOCKER_GROUP=1
+  fi
+
+  usermod -aG docker "$TARGET_USER" || true
 
   if [ -z "$EKTISIS_RUNTIME_DIR" ]; then
     EKTISIS_RUNTIME_DIR="$TARGET_HOME/ektisis-runtime"
@@ -113,10 +121,16 @@ if [ -n "$TARGET_USER" ] && id "$TARGET_USER" >/dev/null 2>&1; then
   chown -R "$TARGET_USER:$TARGET_USER" "$EKTISIS_RUNTIME_DIR"
   echo "Ektisis runtime directory: $EKTISIS_RUNTIME_DIR"
 
-  if sudo -u "$TARGET_USER" docker ps >/dev/null 2>&1; then
-    echo "Docker already works for user '$TARGET_USER' without sudo."
+  if [ "$USER_WAS_IN_DOCKER_GROUP" = "1" ]; then
+    echo "User '$TARGET_USER' was already in the docker group."
+    echo "If validation says Docker requires sudo, reconnect or run:"
+    echo
+    echo "newgrp docker"
   else
-    echo "User '$TARGET_USER' was added to the docker group. Reconnect or run: newgrp docker"
+    echo "User '$TARGET_USER' was added to the docker group."
+    echo "Reconnect before validation, or run:"
+    echo
+    echo "newgrp docker"
   fi
 fi
 
