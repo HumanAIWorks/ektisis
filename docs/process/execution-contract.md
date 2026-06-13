@@ -40,6 +40,26 @@ Troubleshooting should work like a short detour:
 
 The reader should never need to guess which README, script, screen, URL, or command is the current source of truth.
 
+## Phase-owned validation flow
+
+A phase may start as manual discovery, but the official phase result should become scriptable.
+
+When a phase only needs to prove that a stack component works, the official flow should prefer temporary validation artifacts.
+
+Temporary validation artifacts should be cleaned up by the same phase whenever possible.
+
+Examples:
+
+- a temporary organization created only for a smoke test should be deleted by the phase script
+- a temporary repository created only for a smoke test should be deleted by the phase script
+- a temporary local clone created only for a smoke test should be removed by the phase script
+
+A phase script may call validation scripts from earlier phases when it depends on them.
+
+If a dependency fails, the current phase script should stop and tell the reader which phase or troubleshooting document to use.
+
+The long-term direction is a top-level installer or validator that calls phase scripts in order, while each phase remains small enough to maintain, replace, or fix independently.
+
 ## Tutorial flow versus validation flow
 
 Public tutorials are for a person starting from a known version of the repository and following it from the beginning.
