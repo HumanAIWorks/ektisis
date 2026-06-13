@@ -114,6 +114,16 @@ SSL: Disable
 
 The database SSL option is for the connection between Gitea and PostgreSQL. In Phase 1A both services run inside the same Docker network on the same machine, so `Disable` is expected.
 
+## After installation
+
+After the Gitea installation screen is complete, follow:
+
+```txt
+phases/phase-1a/POST_INSTALL.md
+```
+
+This checklist confirms browser access, administrator login, and service health.
+
 ## Reset Phase 1A before real use
 
 Use this only if the first setup failed and you want to start Phase 1A again from zero.
@@ -187,6 +197,14 @@ docs/troubleshooting/oci.md
 ```
 
 OCI means Oracle Cloud Infrastructure, Oracle's cloud platform.
+
+## Decisions
+
+The Phase 1A decisions are recorded here:
+
+```txt
+docs/decisions/phase-1a.md
+```
 
 ## Completion criteria
 
