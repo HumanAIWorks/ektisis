@@ -18,31 +18,77 @@ A repository is a project folder tracked by Git. Git is the tool used to store c
 
 An organization is a group inside Gitea where related repositories can live together.
 
-## Before you start
+## Run order
 
-Phase 1A must already be complete.
+Follow this order from the repository root.
 
-Run:
+First, make sure Phase 1A is still healthy:
 
 ```bash
 bash phases/phase-1a/validate.sh
 bash phases/phase-1a/check-access.sh
 ```
 
-You also need a Gitea administrator user created in the browser.
+Then validate that Phase 1B can run:
 
-## Recommended names
+```bash
+bash phases/phase-1b/validate.sh
+```
 
-For the first validation, use simple names:
+Then create the organization and repository in the browser.
+
+Recommended names:
 
 ```txt
 Organization: ektisis
 Repository: phase-1b-smoke-test
 ```
 
+Then run the Git smoke test:
+
+```bash
+bash phases/phase-1b/smoke-test-http.sh
+```
+
 A smoke test is a small test that confirms the basic flow works before building more things on top.
 
-## Step 1 — Create the organization in Gitea
+## Before you start
+
+Phase 1A must already be complete, and you need a Gitea administrator user created in the browser.
+
+If Phase 1A is not complete yet, go back to:
+
+```txt
+phases/phase-1a/README.md
+```
+
+## Step 1 — Confirm Phase 1A
+
+From the server:
+
+```bash
+bash phases/phase-1a/validate.sh
+bash phases/phase-1a/check-access.sh
+```
+
+These commands confirm that Gitea is still running and reachable.
+
+## Step 2 — Validate Phase 1B prerequisites
+
+From the server:
+
+```bash
+bash phases/phase-1b/validate.sh
+```
+
+The script checks:
+
+- Phase 1A is still healthy
+- Gitea answers locally
+- the Git command exists
+- the runtime test directory exists
+
+## Step 3 — Create the organization in Gitea
 
 Open Gitea in your browser.
 
@@ -62,7 +108,7 @@ Visibility: Public or Private
 
 For now, either visibility is fine. Private is safer if the machine is exposed on the internet.
 
-## Step 2 — Create a test repository
+## Step 4 — Create a test repository
 
 Inside the `ektisis` organization:
 
@@ -81,22 +127,7 @@ Default branch: main
 
 If the screen asks about README, choose to initialize with a README. This makes clone and push testing easier.
 
-## Step 3 — Run the validation script
-
-From the server:
-
-```bash
-bash phases/phase-1b/validate.sh
-```
-
-The script checks:
-
-- Phase 1A is still healthy
-- Gitea answers locally
-- the Git command exists
-- the runtime test directory exists
-
-## Step 4 — Run the Git smoke test
+## Step 5 — Run the Git smoke test
 
 This step clones the test repository, creates a tiny file, commits it, and pushes it back to Gitea.
 
