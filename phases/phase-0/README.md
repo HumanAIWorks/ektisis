@@ -97,12 +97,7 @@ git clone https://github.com/HumanAIWorks/ektisis.git
 cd ektisis
 ```
 
-This step is also repeatable if the repository already exists. In that case, do not clone again. Update it instead:
-
-```bash
-cd ektisis
-git pull
-```
+This guide assumes the repository has already been cloned before the phase commands are executed.
 
 ## Step 1 — Inspect the machine
 
@@ -354,14 +349,6 @@ bash phases/phase-0/validate.sh
 bash phases/phase-0/generate-machine-md.sh
 ```
 
-For an existing clone:
-
-```bash
-cd ektisis
-git pull
-bash phases/phase-0/doctor.sh
-sudo bash phases/phase-0/bootstrap.sh
-bash phases/phase-0/validate.sh
-```
+For an existing clone, return to the repository directory and follow the same phase commands from Step 1.
 
 Next phase after this is Phase 1A: run Gitea and PostgreSQL with Docker Compose.
