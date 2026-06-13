@@ -109,6 +109,47 @@ Host: postgres:5432
 Database Name: gitea
 Username: gitea
 Password: value from POSTGRES_PASSWORD
+SSL: Disable
+```
+
+The database SSL option is for the connection between Gitea and PostgreSQL. In Phase 1A both services run inside the same Docker network on the same machine, so `Disable` is expected.
+
+## Reset Phase 1A before real use
+
+Use this only if the first setup failed and you want to start Phase 1A again from zero.
+
+```bash
+bash phases/phase-1a/reset.sh --yes
+bash phases/phase-1a/bootstrap.sh
+bash phases/phase-1a/validate.sh
+```
+
+This removes the Phase 1A database and Gitea data.
+
+Do not use this after real repositories or users have been created, unless you intentionally want to delete them.
+
+## Common setup error: database password failed
+
+If Gitea shows this message:
+
+```txt
+pq: password authentication failed for user "gitea"
+```
+
+It usually means PostgreSQL was already initialized with an older password, but the `.env` file was recreated with a new password.
+
+Before real data exists, the safest fix is a full Phase 1A reset:
+
+```bash
+bash phases/phase-1a/reset.sh --yes
+bash phases/phase-1a/bootstrap.sh
+bash phases/phase-1a/validate.sh
+```
+
+Then copy the new `POSTGRES_PASSWORD` from:
+
+```bash
+cat ~/ektisis-runtime/compose/phase-1a/.env
 ```
 
 ## Stop services
