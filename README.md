@@ -30,16 +30,15 @@ git clone https://github.com/HumanAIWorks/ektisis.git
 cd ektisis
 ```
 
-Then run Phase 0:
+Then follow the Phase 0 guide:
 
 ```bash
-bash phases/phase-0/doctor.sh
-sudo bash phases/phase-0/bootstrap.sh
-bash phases/phase-0/validate.sh
-bash phases/phase-0/generate-machine-md.sh
+cat phases/phase-0/README.md
 ```
 
-If Docker was installed for the first time, log out and log in again before running validation if Docker still asks for sudo.
+Or open it here:
+
+[Phase 0 — Machine Stabilization](./phases/phase-0/README.md)
 
 ## Principle
 
