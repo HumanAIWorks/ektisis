@@ -33,7 +33,6 @@ fi
 mkdir -p "$ENV_DIR"
 mkdir -p "$RUNTIME_DIR/data/postgres"
 mkdir -p "$RUNTIME_DIR/data/gitea"
-mkdir -p "$RUNTIME_DIR/data/gitea-config"
 mkdir -p "$RUNTIME_DIR/logs/phase-1a"
 
 LOCAL_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
@@ -64,7 +63,7 @@ POSTGRES_IMAGE=postgres:16-alpine
 POSTGRES_DB=gitea
 POSTGRES_USER=gitea
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD_VALUE
-GITEA_IMAGE=gitea/gitea:latest-rootless
+GITEA_IMAGE=gitea/gitea:latest
 GITEA_HTTP_PORT=3000
 GITEA_SSH_PORT=2222
 GITEA_DOMAIN=$GITEA_DOMAIN_DEFAULT
