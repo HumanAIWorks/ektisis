@@ -29,13 +29,33 @@ if command -v curl >/dev/null 2>&1; then
   [ -n "$VALUE" ] && PUBLIC_EGRESS_IP="$VALUE"
 fi
 
+DMI_TEXT=""
+for file in /sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name /sys/class/dmi/id/chassis_asset_tag; do
+  if [ -r "$file" ]; then
+    DMI_TEXT="$DMI_TEXT $(cat "$file" 2>/dev/null || true)"
+  fi
+done
+
+CLOUD_INIT_TEXT=""
+if [ -r /run/cloud-init/instance-data.json ]; then
+  CLOUD_INIT_TEXT="$(cat /run/cloud-init/instance-data.json 2>/dev/null || true)"
+fi
+
 CLOUD_HINT="unknown"
-if curl -fsS --max-time 1 http://169.254.169.254/opc/v2/instance/ >/dev/null 2>&1; then
+if printf '%s %s' "$DMI_TEXT" "$CLOUD_INIT_TEXT" | grep -qiE 'oracle|oci'; then
   CLOUD_HINT="Oracle Cloud Infrastructure likely"
-elif curl -fsS --max-time 1 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
+elif command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v2/instance/ >/dev/null 2>&1; then
+  CLOUD_HINT="Oracle Cloud Infrastructure likely"
+elif printf '%s %s' "$DMI_TEXT" "$CLOUD_INIT_TEXT" | grep -qi 'amazon\|aws'; then
   CLOUD_HINT="AWS or AWS-compatible VPS likely"
-elif curl -fsS --max-time 1 -H Metadata:true 'http://169.254.169.254/metadata/instance?api-version=2021-02-01' >/dev/null 2>&1; then
+elif command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
+  CLOUD_HINT="AWS or AWS-compatible VPS likely"
+elif printf '%s %s' "$DMI_TEXT" "$CLOUD_INIT_TEXT" | grep -qi 'microsoft\|azure'; then
   CLOUD_HINT="Azure likely"
+elif command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 -H Metadata:true 'http://169.254.169.254/metadata/instance?api-version=2021-02-01' >/dev/null 2>&1; then
+  CLOUD_HINT="Azure likely"
+elif [ "$PUBLIC_EGRESS_IP" != "not detected" ] && printf '%s' "$LOCAL_IP" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)'; then
+  CLOUD_HINT="cloud or VPS likely, provider not identified"
 elif printf '%s' "$LOCAL_IP" | grep -qE '^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)'; then
   CLOUD_HINT="local network or private network likely"
 fi
@@ -52,10 +72,8 @@ echo "- Gitea SSH port: $SSH_PORT"
 echo "- Environment hint: $CLOUD_HINT"
 echo
 
-LOCAL_OK=0
 if curl -fsS --max-time 5 "http://127.0.0.1:$HTTP_PORT/" >/dev/null 2>&1; then
   echo "OK: Gitea responds inside this machine."
-  LOCAL_OK=1
 else
   echo "FAIL: Gitea does not respond inside this machine."
   echo
