@@ -234,6 +234,45 @@ Then open the repository in the browser and confirm that the new file exists:
 phase-1b-smoke-test.txt
 ```
 
+## If Git says repository not found
+
+If the smoke test fails with:
+
+```txt
+Repository not found
+```
+
+Check the browser first.
+
+Open Gitea and confirm:
+
+```txt
+Organization exists: ektisis
+Repository exists inside that organization: phase-1b-smoke-test
+Repository was initialized with README
+```
+
+The repository URL should follow this shape:
+
+```txt
+http://YOUR_SERVER_IP:3000/ektisis/phase-1b-smoke-test
+```
+
+If the repository was created under your personal user instead of the organization, either create it again under the `ektisis` organization or answer that username when the script asks for `Organization`.
+
+For the factory baseline, prefer:
+
+```txt
+Organization: ektisis
+Repository: phase-1b-smoke-test
+```
+
+Then run the smoke test again:
+
+```bash
+bash phases/phase-1b/smoke-test-http.sh
+```
+
 ## If authentication fails
 
 If Git asks for a username/password and fails, check:
