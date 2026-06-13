@@ -1,0 +1,7 @@
+.env
+*.env
+*.log
+MACHINE.md
+MACHINE.local.md
+*.bak
+.DS_Store
