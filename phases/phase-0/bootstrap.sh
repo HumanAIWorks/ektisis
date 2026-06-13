@@ -3,6 +3,7 @@ set -euo pipefail
 
 DOCKER_DATA_ROOT="${EKTISIS_DOCKER_DATA_ROOT:-/home/docker-data}"
 INSTALL_DOCKER="${EKTISIS_INSTALL_DOCKER:-1}"
+EKTISIS_HOME_NAME="${EKTISIS_HOME_NAME:-ektisis}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root, for example: sudo $0"
@@ -29,7 +30,7 @@ if [ -z "$OS_CODENAME" ]; then
 fi
 
 apt-get update
-apt-get install -y ca-certificates curl gnupg lsb-release sudo git openssh-server ufw jq htop btop tree unzip net-tools dnsutils lsof
+apt-get install -y ca-certificates curl wget gnupg lsb-release sudo git openssh-server ufw jq nano htop btop tree unzip net-tools dnsutils lsof
 
 systemctl enable ssh >/dev/null 2>&1 || systemctl enable sshd >/dev/null 2>&1 || true
 systemctl start ssh >/dev/null 2>&1 || systemctl start sshd >/dev/null 2>&1 || true
@@ -43,6 +44,10 @@ fi
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
 
 if [ "$INSTALL_DOCKER" = "1" ] && ! command -v docker >/dev/null 2>&1; then
+  for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
+    apt-get remove -y "$pkg" >/dev/null 2>&1 || true
+  done
+
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
@@ -96,9 +101,11 @@ TARGET_USER="${SUDO_USER:-}"
 if [ -n "$TARGET_USER" ] && id "$TARGET_USER" >/dev/null 2>&1; then
   usermod -aG docker "$TARGET_USER" || true
   TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
-  mkdir -p "$TARGET_HOME/ektisis"/{data,logs,secrets,backups,projects}
-  chmod 700 "$TARGET_HOME/ektisis/secrets"
-  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/ektisis"
+  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME"/{data,compose,backups,secrets,logs,projects}
+  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME/data"/{gitea,postgres,litellm,openhands,freellmapi}
+  mkdir -p "$TARGET_HOME/$EKTISIS_HOME_NAME/backups"/{gitea,postgres,configs}
+  chmod 700 "$TARGET_HOME/$EKTISIS_HOME_NAME/secrets"
+  chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/$EKTISIS_HOME_NAME"
   echo "User '$TARGET_USER' added to docker group. Re-login may be required."
 fi
 
