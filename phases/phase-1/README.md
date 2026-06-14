@@ -25,19 +25,24 @@ The script prepares runtime configuration, runs Docker Compose, and validates th
 ## Services in this compose
 
 ```txt
+PostgreSQL shared by the stack
 Gitea
-PostgreSQL for Gitea
+FreeLLMAPI
 LiteLLM
-PostgreSQL for LiteLLM
 Redis
 OpenHands
 ```
 
-PostgreSQL for Gitea is included because Gitea depends on it.
+PostgreSQL is a single container. It stores separate databases for the services that need PostgreSQL.
 
-PostgreSQL for LiteLLM is included because LiteLLM uses it for proxy state, virtual keys, and persistence.
+Current databases:
 
-Redis is included as a shared lightweight infrastructure service for later orchestration needs.
+```txt
+gitea
+litellm
+```
+
+This keeps the stack simpler while preserving separation at the database level.
 
 ## Dependency rule
 
@@ -46,8 +51,8 @@ Service ordering belongs in Docker Compose when there is a direct dependency.
 Examples:
 
 ```txt
-Gitea depends on PostgreSQL for Gitea
-LiteLLM depends on PostgreSQL for LiteLLM
+Gitea depends on PostgreSQL
+LiteLLM depends on PostgreSQL and FreeLLMAPI
 OpenHands depends on LiteLLM and Gitea
 ```
 
@@ -69,17 +74,17 @@ The repository keeps the source compose file. Secrets and generated runtime conf
 After `docker compose up`, the script validates:
 
 ```txt
-Gitea PostgreSQL container is running and healthy
+shared PostgreSQL container is running and healthy
 Gitea responds locally
-LiteLLM PostgreSQL container is running and healthy
+FreeLLMAPI responds locally
 LiteLLM readiness endpoint responds locally
 Redis is running and healthy
 OpenHands container is running
 OpenHands HTTP responds locally
 ```
 
-## Current limitation
+## FreeLLMAPI note
 
-FreeLLMAPI is represented in the LiteLLM configuration as an OpenAI-compatible route target.
+The current FreeLLMAPI service is a lightweight local placeholder service so the Docker Compose stack has the expected service name and dependency path.
 
-A Docker service for FreeLLMAPI should only be added after the exact image and startup contract are confirmed, so the main compose does not intentionally include a broken placeholder service.
+It must be replaced by the real FreeLLMAPI image after the exact Docker image and startup contract are confirmed.
