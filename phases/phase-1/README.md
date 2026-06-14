@@ -14,19 +14,6 @@ PostgreSQL is included here because it is a Gitea dependency.
 
 The Git smoke test is included here because it validates that Gitea is actually usable as a Git server.
 
-## Current status
-
-This directory is the unified Phase 1 entrypoint.
-
-It reuses the already validated implementation from:
-
-```txt
-phases/phase-1a
-phases/phase-1b
-```
-
-Those older directories are implementation details until the cleanup/move is completed.
-
 ## Run
 
 From the repository root:
@@ -35,11 +22,7 @@ From the repository root:
 bash phases/phase-1/run.sh
 ```
 
-## Validate
-
-```bash
-bash phases/phase-1/validate.sh
-```
+That is the public entrypoint for this phase.
 
 ## What run.sh does
 
@@ -50,6 +33,24 @@ validate Gitea + PostgreSQL
 check Gitea access
 run temporary Git clone/commit/push smoke test
 clean temporary Git smoke test resources
+```
+
+## Current implementation note
+
+This unified phase currently reuses implementation scripts from:
+
+```txt
+phases/phase-1a
+phases/phase-1b
+```
+
+Those directories are internal implementation details while the phase is being consolidated.
+
+The public interface for Phase 1 is only:
+
+```txt
+phases/phase-1/README.md
+phases/phase-1/run.sh
 ```
 
 ## Completion criteria
