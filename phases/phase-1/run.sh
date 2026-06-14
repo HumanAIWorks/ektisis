@@ -90,10 +90,7 @@ wait_http() {
 }
 
 write_litellm_config() {
-  local litellm_master_key
-  litellm_master_key="$(get_env_value LITELLM_MASTER_KEY)"
-
-  cat > "$LITELLM_CONFIG_FILE" <<EOF_CONFIG
+  cat > "$LITELLM_CONFIG_FILE" <<'EOF_CONFIG'
 model_list:
   - model_name: ektisis-free
     litellm_params:
@@ -102,9 +99,8 @@ model_list:
       api_key: os.environ/FREE_LLM_API_KEY
 
 general_settings:
-  master_key: "$litellm_master_key"
+  master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
-  litellm_key_header_name: "x-litellm-api-key"
 EOF_CONFIG
 }
 
@@ -404,10 +400,9 @@ print_access_urls() {
   echo "LiteLLM UI username: $ui_username"
   echo "LiteLLM UI password: $ui_password"
   echo "LiteLLM API key: $litellm_master_key"
-  echo "LiteLLM Swagger/API value: Bearer $litellm_master_key"
   echo
   echo "Use the LiteLLM UI username/password to sign in at /ui."
-  echo "Use the LiteLLM Swagger/API value when Swagger asks for x-litellm-api-key."
+  echo "Use the LiteLLM API key as a bearer token for API clients."
 }
 
 print_result() {
