@@ -14,17 +14,19 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF_USAGE'
 Usage:
-  bash phases/phase-1/reset.sh [--containers|--runtime|--clean] [--yes]
+  bash phases/phase-1/reset.sh [--containers|--clean] [--yes]
 
-Modes:
-  --containers   Stop and recreate containers only. Keeps all runtime data and .env. Default.
-  --runtime      Stop containers and remove generated runtime config. Keeps service data volumes.
-  --clean        Stop containers and remove generated runtime config and Phase 1 service data.
+Safe modes:
+  --containers   Stop and recreate containers only. Keeps .env and all service data. Default.
+  --clean        Stop containers and remove generated config plus Phase 1 service data.
 
 Examples:
   bash phases/phase-1/reset.sh --containers
-  bash phases/phase-1/reset.sh --runtime --yes
   bash phases/phase-1/reset.sh --clean --yes
+
+Why there is no config-only reset:
+  Phase 1 stores database credentials in the generated .env.
+  Removing .env while keeping PostgreSQL data can create a broken state where the new password no longer matches the persisted database.
 EOF_USAGE
 }
 
@@ -32,9 +34,6 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --containers)
       MODE="containers"
-      ;;
-    --runtime)
-      MODE="runtime"
       ;;
     --clean)
       MODE="clean"
@@ -89,11 +88,11 @@ remove_path() {
     return 0
   fi
 
-  if rm -rf "$path" 2>/dev/null; then
+  if rm -r -f "$path" 2>/dev/null; then
     return 0
   fi
 
-  sudo rm -rf "$path"
+  sudo -- rm -r -f "$path"
 }
 
 echo "== Ektisis Phase 1 Reset =="
@@ -116,17 +115,6 @@ case "$MODE" in
     fi
     ;;
 
-  runtime)
-    if ! confirm "This will remove generated Phase 1 runtime config, including .env, but keep service data."; then
-      echo "Canceled."
-      exit 1
-    fi
-    compose_down
-    remove_path "$RUNTIME_DIR/compose/phase-1"
-    echo "Runtime config removed. Service data was preserved."
-    echo "Run again: bash phases/phase-1/run.sh"
-    ;;
-
   clean)
     if ! confirm "This will remove Phase 1 containers, generated config, and service data. This is a clean reinstall."; then
       echo "Canceled."
@@ -145,4 +133,4 @@ case "$MODE" in
 esac
 
 echo
- echo "Phase 1 reset completed."
+echo "Phase 1 reset completed."
