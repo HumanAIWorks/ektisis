@@ -9,7 +9,6 @@ Phase 0 prepares the machine. Phase 1 starts the services.
 ```txt
 phases/phase-1/README.md
 phases/phase-1/run.sh
-phases/phase-1/reconcile.sh
 phases/phase-1/reset.sh
 phases/phase-1/compose.yml
 ```
@@ -92,45 +91,35 @@ The `run.sh` script generates these values in:
 
 At the end of a successful run, the script prints the LiteLLM UI username, UI password, and API key.
 
-## Reconcile runtime
+## Reset to Phase 0 baseline
 
-Use reconcile when generated config and running containers may be out of sync, but you do not want to delete data.
-
-This is the safe fix for cases where `.env` has one LiteLLM key, but the running container still has an older key.
+Use `reset.sh` to remove Phase 1 and return the machine to the post-Phase-0 baseline, as if Phase 1 had not been executed.
 
 ```bash
-bash phases/phase-1/reconcile.sh
+bash phases/phase-1/reset.sh --yes
 ```
 
-The script checks and fixes:
+This removes:
 
 ```txt
-LiteLLM LITELLM_MASTER_KEY
-LiteLLM UI_PASSWORD
-OpenHands LLM_API_KEY
+Phase 1 containers and Compose network
+Phase 1 generated config
+Phase 1 service data
+Phase 1 workspace and logs
+local UFW rules opened by Phase 1
 ```
 
-If a mismatch is found, the affected container is recreated with the current `.env`.
+This keeps:
 
-## Reset modes
-
-Use `reset.sh` instead of manually deleting folders.
-
-Default mode: recreate containers only, preserving runtime config and service data.
-
-```bash
-bash phases/phase-1/reset.sh --containers
+```txt
+operating system setup
+SSH
+Docker
+repository clone
+Phase 0 baseline
 ```
 
-Clean mode: remove containers, generated runtime config, and Phase 1 service data. Use this for a true clean reinstall.
-
-```bash
-bash phases/phase-1/reset.sh --clean --yes
-```
-
-There is intentionally no config-only reset mode. Phase 1 stores database credentials in the generated `.env`. Removing `.env` while keeping PostgreSQL data can create a broken state where the new password no longer matches the persisted database.
-
-After `--clean`, run:
+After reset, run Phase 1 again with:
 
 ```bash
 bash phases/phase-1/run.sh
