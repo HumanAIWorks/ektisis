@@ -81,15 +81,26 @@ LITELLM_MASTER_KEY
 
 Use `UI_USERNAME` and `UI_PASSWORD` to sign in to the LiteLLM dashboard at `/ui`.
 
-Use `LITELLM_MASTER_KEY` only as an API key, normally as an `Authorization: Bearer ...` token for API clients.
+The LiteLLM raw API key is `LITELLM_MASTER_KEY`.
+
+When Swagger asks for `x-litellm-api-key`, use the value with the `Bearer` prefix:
+
+```txt
+Bearer sk-...
+```
+
+The `run.sh` script prints both values at the end:
+
+```txt
+LiteLLM API key: sk-...
+LiteLLM Swagger/API value: Bearer sk-...
+```
 
 The `run.sh` script generates these values in:
 
 ```txt
 ~/ektisis-runtime/compose/phase-1/.env
 ```
-
-At the end of a successful run, the script prints the LiteLLM UI username, UI password, and API key.
 
 ## Reset to Phase 0 baseline
 
