@@ -21,7 +21,7 @@ It removes:
   - Phase 1 containers and Compose network
   - Phase 1 generated config
   - Phase 1 service data
-  - Phase 1 workspace and logs
+  - Phase 1 workspace contents and logs
   - local UFW rules opened by Phase 1
 
 It keeps:
@@ -29,7 +29,7 @@ It keeps:
   - SSH
   - Docker
   - repository clone
-  - Phase 0 baseline
+  - Phase 0 baseline directories
 EOF_USAGE
 }
 
@@ -90,6 +90,16 @@ remove_path() {
   sudo -- rm -r -f "$path"
 }
 
+ensure_phase0_dirs() {
+  mkdir -p "$RUNTIME_DIR/data"
+  mkdir -p "$RUNTIME_DIR/compose"
+  mkdir -p "$RUNTIME_DIR/backups"
+  mkdir -p "$RUNTIME_DIR/secrets"
+  mkdir -p "$RUNTIME_DIR/logs"
+  mkdir -p "$RUNTIME_DIR/projects"
+  chmod 700 "$RUNTIME_DIR/secrets" 2>/dev/null || true
+}
+
 remove_ufw_rule() {
   local port="$1"
 
@@ -120,6 +130,8 @@ remove_path "$RUNTIME_DIR/data/redis"
 remove_path "$RUNTIME_DIR/data/openhands"
 remove_path "$RUNTIME_DIR/projects"
 remove_path "$RUNTIME_DIR/logs/phase-1"
+
+ensure_phase0_dirs
 
 remove_ufw_rule 2222
 remove_ufw_rule 3000
