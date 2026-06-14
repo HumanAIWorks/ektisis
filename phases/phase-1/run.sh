@@ -316,7 +316,7 @@ container_running() {
 
 container_health() {
   local name="$1"
-  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null || echo unknown
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none}}{{end}}' "$name" 2>/dev/null || echo unknown
 }
 
 read_freellmapi_unified_key() {
@@ -418,9 +418,10 @@ print_access_urls() {
   echo "LiteLLM UI username: $ui_username"
   echo "LiteLLM UI password: $ui_password"
   echo "LiteLLM API key: $litellm_master_key"
+  echo "LiteLLM Swagger/API value: Bearer $litellm_master_key"
   echo
   echo "Use the LiteLLM UI username/password to sign in at /ui."
-  echo "Use the LiteLLM API key in Swagger or as an Authorization Bearer token for API clients."
+  echo "Use the LiteLLM Swagger/API value when Swagger asks for x-litellm-api-key."
 }
 
 print_result() {
