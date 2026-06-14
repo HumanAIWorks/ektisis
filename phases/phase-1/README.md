@@ -69,6 +69,27 @@ Runtime files are created outside the repository:
 
 The repository keeps the source compose file. Secrets and generated runtime config stay out of Git.
 
+## LiteLLM access
+
+LiteLLM has two different credential types:
+
+```txt
+UI_USERNAME / UI_PASSWORD
+LITELLM_MASTER_KEY
+```
+
+Use `UI_USERNAME` and `UI_PASSWORD` to sign in to the LiteLLM dashboard at `/ui`.
+
+Use `LITELLM_MASTER_KEY` only as an API key, normally as an `Authorization: Bearer ...` token for API clients.
+
+The `run.sh` script generates these values in:
+
+```txt
+~/ektisis-runtime/compose/phase-1/.env
+```
+
+At the end of a successful run, the script prints the LiteLLM UI username, UI password, and API key.
+
 ## Validation
 
 After `docker compose up`, the script validates:
@@ -85,6 +106,10 @@ OpenHands HTTP responds locally
 
 ## FreeLLMAPI note
 
-The current FreeLLMAPI service is a lightweight local placeholder service so the Docker Compose stack has the expected service name and dependency path.
+FreeLLMAPI is exposed on its configured port because its dashboard is part of the initial manual configuration flow.
 
-It must be replaced by the real FreeLLMAPI image after the exact Docker image and startup contract are confirmed.
+LiteLLM still talks to FreeLLMAPI internally through the Docker Compose network using:
+
+```txt
+http://freellmapi:3001/v1
+```
