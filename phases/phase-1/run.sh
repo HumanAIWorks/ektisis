@@ -207,6 +207,10 @@ validate_phase0() {
     ok "Phase 0 validation passed"
   else
     fail "Phase 0 validation failed"
+    echo
+    echo "Phase 1 cannot continue until the Phase 0 baseline is valid."
+    echo "Run: sudo bash phases/phase-0/bootstrap.sh"
+    exit 1
   fi
 }
 
