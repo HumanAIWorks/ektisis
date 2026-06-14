@@ -197,6 +197,43 @@ validate_prerequisites() {
   command -v curl >/dev/null 2>&1 && ok "curl command found" || fail "curl command not found"
 }
 
+configure_firewall() {
+  local gitea_port litellm_port openhands_port ufw_status
+
+  if ! command -v ufw >/dev/null 2>&1; then
+    ok "UFW not installed; skipping local firewall configuration"
+    return 0
+  fi
+
+  if ! sudo -n true 2>/dev/null; then
+    echo "sudo may ask for your password to configure UFW."
+  fi
+
+  ufw_status="$(sudo ufw status 2>/dev/null || true)"
+  if ! printf '%s' "$ufw_status" | grep -qi 'Status: active'; then
+    ok "UFW is not active; no local firewall ports to open"
+    return 0
+  fi
+
+  gitea_port="$(get_env_value GITEA_HTTP_PORT)"
+  litellm_port="$(get_env_value LITELLM_PORT)"
+  openhands_port="$(get_env_value OPENHANDS_PORT)"
+  [ -z "$gitea_port" ] && gitea_port="3000"
+  [ -z "$litellm_port" ] && litellm_port="4000"
+  [ -z "$openhands_port" ] && openhands_port="3002"
+
+  sudo ufw allow "${gitea_port}/tcp" comment 'Ektisis Gitea' >/dev/null
+  ok "UFW allows Gitea port $gitea_port/tcp"
+
+  sudo ufw allow "${litellm_port}/tcp" comment 'Ektisis LiteLLM' >/dev/null
+  ok "UFW allows LiteLLM port $litellm_port/tcp"
+
+  sudo ufw allow "${openhands_port}/tcp" comment 'Ektisis OpenHands' >/dev/null
+  ok "UFW allows OpenHands port $openhands_port/tcp"
+
+  ok "FreeLLMAPI port is not opened publicly"
+}
+
 start_postgres() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d postgres
 }
@@ -348,16 +385,19 @@ validate_prerequisites
 section "Step 3: prepare runtime configuration."
 prepare_runtime
 
-section "Step 4: start shared PostgreSQL."
+section "Step 4: configure local firewall."
+configure_firewall
+
+section "Step 5: start shared PostgreSQL."
 start_postgres
 wait_for_postgres
 ensure_litellm_database
 
-section "Step 5: start all services with Docker Compose."
+section "Step 6: start all services with Docker Compose."
 start_stack
 ok "Docker Compose up completed"
 
-section "Step 6: validate service health."
+section "Step 7: validate service health."
 validate_stack
 
 print_result
