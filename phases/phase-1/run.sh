@@ -176,6 +176,8 @@ EOF_ENV
   set_env_if_missing LITELLM_PORT 4000
   set_env_if_missing LITELLM_MASTER_KEY "sk-$(random_hex)"
   set_env_if_missing LITELLM_SALT_KEY "sk-$(random_hex)"
+  set_env_if_missing UI_USERNAME admin
+  set_env_if_missing UI_PASSWORD "$(random_hex)"
   set_env_if_missing FREELLMAPI_PORT 3001
   set_env_value FREELLMAPI_HOST_BIND 0.0.0.0
   set_env_if_missing FREELLMAPI_ENCRYPTION_KEY "$(random_hex_32)"
@@ -381,11 +383,14 @@ validate_stack() {
 }
 
 print_access_urls() {
-  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip
+  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip ui_username ui_password litellm_master_key
   root_url="$(get_env_value GITEA_ROOT_URL)"
   freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
+  ui_username="$(get_env_value UI_USERNAME)"
+  ui_password="$(get_env_value UI_PASSWORD)"
+  litellm_master_key="$(get_env_value LITELLM_MASTER_KEY)"
   [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
@@ -406,6 +411,15 @@ print_access_urls() {
     echo "LiteLLM: http://$local_ip:$litellm_port/"
     echo "OpenHands: http://$local_ip:$openhands_port/"
   fi
+
+  echo
+  echo "LiteLLM access:"
+  echo "LiteLLM UI username: $ui_username"
+  echo "LiteLLM UI password: $ui_password"
+  echo "LiteLLM API key: $litellm_master_key"
+  echo
+  echo "Use the LiteLLM UI username/password to sign in at /ui."
+  echo "Use the LiteLLM API key only as an Authorization Bearer token for API clients."
 }
 
 print_result() {
