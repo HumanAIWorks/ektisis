@@ -63,11 +63,23 @@ set_env_if_missing() {
 set_env_value() {
   local key="$1"
   local value="$2"
-  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+
+  if [ -f "$ENV_FILE" ]; then
+    awk -v k="$key" -v v="$value" '
+      BEGIN { updated = 0 }
+      $0 ~ "^" k "=" { print k "=" v; updated = 1; next }
+      { print }
+      END { if (updated == 0) print k "=" v }
+    ' "$ENV_FILE" > "$tmp_file"
   else
-    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    printf '%s=%s\n' "$key" "$value" > "$tmp_file"
   fi
+
+  mv "$tmp_file" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
 }
 
 wait_http() {
@@ -169,6 +181,7 @@ EOF_ENV
   set_env_if_missing FREELLMAPI_ENCRYPTION_KEY "$(random_hex_32)"
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_RETENTION_DAYS 90
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_MAX_ROWS 100000
+  set_env_if_missing FREELLMAPI_ADMIN_EMAIL admin@ektisis.local
   set_env_if_missing REDIS_IMAGE redis:7-alpine
   set_env_value OPENHANDS_IMAGE docker.openhands.dev/openhands/openhands:1.8
   set_env_if_missing OPENHANDS_SANDBOX_IMAGE docker.all-hands.dev/all-hands-ai/runtime:latest
@@ -202,6 +215,7 @@ validate_prerequisites() {
   docker ps >/dev/null 2>&1 && ok "Docker works without sudo" || fail "Docker does not work without sudo"
   docker compose version >/dev/null 2>&1 && ok "Docker Compose works" || fail "Docker Compose is not available"
   command -v curl >/dev/null 2>&1 && ok "curl command found" || fail "curl command not found"
+  command -v jq >/dev/null 2>&1 && ok "jq command found" || fail "jq command not found"
 }
 
 configure_firewall() {
@@ -303,6 +317,77 @@ container_health() {
   docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null || echo unknown
 }
 
+prompt_freellmapi_admin_password() {
+  local password confirm
+
+  while true; do
+    read -r -s -p "FreeLLMAPI admin password: " password
+    echo
+    read -r -s -p "Confirm FreeLLMAPI admin password: " confirm
+    echo
+
+    if [ "$password" != "$confirm" ]; then
+      echo "Passwords do not match. Try again."
+      continue
+    fi
+
+    if [ "${#password}" -lt 8 ]; then
+      echo "Password must be at least 8 characters. Try again."
+      continue
+    fi
+
+    if printf '%s' "$password" | grep -q '[[:space:]]'; then
+      echo "Password cannot contain whitespace because it is stored in the Phase 1 .env file. Try again."
+      continue
+    fi
+
+    set_env_value FREELLMAPI_ADMIN_PASSWORD "$password"
+    break
+  done
+}
+
+setup_freellmapi_admin() {
+  local freellmapi_port status_json needs_setup admin_email admin_password payload
+
+  freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
+  [ -z "$freellmapi_port" ] && freellmapi_port="3001"
+
+  wait_http "FreeLLMAPI ping endpoint" "http://127.0.0.1:$freellmapi_port/api/ping" 60 2 || return 1
+
+  status_json="$(curl -fsS --max-time 5 "http://127.0.0.1:$freellmapi_port/api/auth/status" 2>/dev/null || true)"
+  needs_setup="$(printf '%s' "$status_json" | jq -r '.needsSetup // empty' 2>/dev/null || true)"
+
+  if [ "$needs_setup" != "true" ]; then
+    ok "FreeLLMAPI admin user is already configured"
+    return 0
+  fi
+
+  admin_email="$(get_env_value FREELLMAPI_ADMIN_EMAIL)"
+  [ -z "$admin_email" ] && admin_email="admin@ektisis.local"
+  set_env_value FREELLMAPI_ADMIN_EMAIL "$admin_email"
+
+  admin_password="$(get_env_value FREELLMAPI_ADMIN_PASSWORD)"
+  if [ -z "$admin_password" ]; then
+    echo
+    echo "Create the FreeLLMAPI admin user."
+    echo "Admin email: $admin_email"
+    prompt_freellmapi_admin_password
+    admin_password="$(get_env_value FREELLMAPI_ADMIN_PASSWORD)"
+  fi
+
+  payload="$(jq -nc --arg email "$admin_email" --arg password "$admin_password" '{email: $email, password: $password}')"
+
+  if curl -fsS --max-time 10 \
+    -X POST "http://127.0.0.1:$freellmapi_port/api/auth/setup" \
+    -H 'Content-Type: application/json' \
+    -d "$payload" >/dev/null; then
+    ok "FreeLLMAPI admin user configured: $admin_email"
+  else
+    fail "could not configure FreeLLMAPI admin user"
+    return 1
+  fi
+}
+
 read_freellmapi_unified_key() {
   docker exec ektisis-freellmapi node -e "const Database=require('better-sqlite3'); const db=new Database('/app/server/data/freeapi.db', { readonly: true }); const row=db.prepare(\"SELECT value FROM settings WHERE key = 'unified_api_key'\").get(); if (row && row.value) console.log(row.value);" 2>/dev/null || true
 }
@@ -368,11 +453,12 @@ validate_stack() {
 }
 
 print_access_urls() {
-  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip
+  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip admin_email
   root_url="$(get_env_value GITEA_ROOT_URL)"
   freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
+  admin_email="$(get_env_value FREELLMAPI_ADMIN_EMAIL)"
   [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
@@ -393,6 +479,9 @@ print_access_urls() {
     echo "LiteLLM: http://$local_ip:$litellm_port/"
     echo "OpenHands: http://$local_ip:$openhands_port/"
   fi
+
+  [ -n "$admin_email" ] && echo "FreeLLMAPI admin email: $admin_email"
+  echo "FreeLLMAPI admin password is stored in: $ENV_FILE"
 }
 
 print_result() {
@@ -437,10 +526,13 @@ section "Step 6: start all services with Docker Compose."
 start_stack
 ok "Docker Compose up completed"
 
-section "Step 7: sync FreeLLMAPI key into LiteLLM."
+section "Step 7: configure FreeLLMAPI admin user."
+setup_freellmapi_admin
+
+section "Step 8: sync FreeLLMAPI key into LiteLLM."
 sync_freellmapi_key_to_litellm
 
-section "Step 8: validate service health."
+section "Step 9: validate service health."
 validate_stack
 
 print_result
