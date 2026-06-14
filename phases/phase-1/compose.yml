@@ -52,21 +52,15 @@ services:
     networks:
       - ektisis
 
-  litellm-postgres:
-    image: ${LITELLM_POSTGRES_IMAGE:-postgres:16-alpine}
-    container_name: ektisis-litellm-postgres
+  freellmapi:
+    image: ${FREELLMAPI_IMAGE:-hashicorp/http-echo:1.0.0}
+    container_name: ektisis-freellmapi
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${LITELLM_POSTGRES_DB:-litellm}
-      POSTGRES_USER: ${LITELLM_POSTGRES_USER:-litellm}
-      POSTGRES_PASSWORD: ${LITELLM_POSTGRES_PASSWORD:?LITELLM_POSTGRES_PASSWORD is required}
-    volumes:
-      - ${EKTISIS_RUNTIME_DIR:?EKTISIS_RUNTIME_DIR is required}/data/litellm-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${LITELLM_POSTGRES_USER:-litellm} -d ${LITELLM_POSTGRES_DB:-litellm}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    command:
+      - -listen=:3001
+      - -text={"status":"ok","service":"freellmapi"}
+    ports:
+      - "${FREELLMAPI_PORT:-3001}:3001"
     networks:
       - ektisis
 
@@ -75,13 +69,17 @@ services:
     container_name: ektisis-litellm
     restart: unless-stopped
     depends_on:
-      litellm-postgres:
+      postgres:
         condition: service_healthy
+      freellmapi:
+        condition: service_started
     environment:
-      DATABASE_URL: postgresql://${LITELLM_POSTGRES_USER:-litellm}:${LITELLM_POSTGRES_PASSWORD:?LITELLM_POSTGRES_PASSWORD is required}@litellm-postgres:5432/${LITELLM_POSTGRES_DB:-litellm}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gitea}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${LITELLM_DB:-litellm}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?LITELLM_SALT_KEY is required}
       STORE_MODEL_IN_DB: "True"
+      FREE_LLM_API_BASE: http://freellmapi:3001/v1
+      FREE_LLM_API_KEY: ${FREE_LLM_API_KEY:-sk-placeholder}
     command:
       - --config=/app/config.yaml
       - --port=4000
