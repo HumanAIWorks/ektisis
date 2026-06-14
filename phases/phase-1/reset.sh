@@ -6,7 +6,6 @@ RUNTIME_DIR="${EKTISIS_RUNTIME_DIR:-$HOME/ektisis-runtime}"
 ENV_FILE="$RUNTIME_DIR/compose/phase-1/.env"
 COMPOSE_FILE="$ROOT_DIR/phases/phase-1/compose.yml"
 COMPOSE_PROJECT="ektisis-phase-1a"
-MODE="containers"
 YES="false"
 
 cd "$ROOT_DIR"
@@ -14,30 +13,28 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF_USAGE'
 Usage:
-  bash phases/phase-1/reset.sh [--containers|--clean] [--yes]
+  bash phases/phase-1/reset.sh [--yes]
 
-Safe modes:
-  --containers   Stop and recreate containers only. Keeps .env and all service data. Default.
-  --clean        Stop containers and remove generated config plus Phase 1 service data.
+This returns the machine to the post-Phase-0 baseline, as if Phase 1 had not been executed.
 
-Examples:
-  bash phases/phase-1/reset.sh --containers
-  bash phases/phase-1/reset.sh --clean --yes
+It removes:
+  - Phase 1 containers and Compose network
+  - Phase 1 generated config
+  - Phase 1 service data
+  - Phase 1 workspace and logs
+  - local UFW rules opened by Phase 1
 
-Why there is no config-only reset:
-  Phase 1 stores database credentials in the generated .env.
-  Removing .env while keeping PostgreSQL data can create a broken state where the new password no longer matches the persisted database.
+It keeps:
+  - operating system setup
+  - SSH
+  - Docker
+  - repository clone
+  - Phase 0 baseline
 EOF_USAGE
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --containers)
-      MODE="containers"
-      ;;
-    --clean)
-      MODE="clean"
-      ;;
     --yes|-y)
       YES="true"
       ;;
@@ -55,13 +52,11 @@ while [ "$#" -gt 0 ]; do
 done
 
 confirm() {
-  local message="$1"
-
   if [ "$YES" = "true" ]; then
     return 0
   fi
 
-  echo "$message"
+  echo "This will remove Phase 1 runtime config and data, returning the machine to the post-Phase-0 baseline."
   printf 'Type yes to continue: '
   read -r answer
   [ "$answer" = "yes" ]
@@ -95,42 +90,46 @@ remove_path() {
   sudo -- rm -r -f "$path"
 }
 
+remove_ufw_rule() {
+  local port="$1"
+
+  if ! command -v ufw >/dev/null 2>&1; then
+    return 0
+  fi
+
+  sudo ufw delete allow "${port}/tcp" >/dev/null 2>&1 || true
+}
+
 echo "== Ektisis Phase 1 Reset =="
-echo "Mode: $MODE"
+echo "Target: post-Phase-0 baseline"
 echo
 
-case "$MODE" in
-  containers)
-    echo "This will recreate containers using the current .env and keep all data."
-    compose_down
-    if [ -f "$ENV_FILE" ]; then
-      docker compose \
-        --env-file "$ENV_FILE" \
-        -f "$COMPOSE_FILE" \
-        -p "$COMPOSE_PROJECT" \
-        up -d --force-recreate
-      bash phases/phase-1/reconcile.sh
-    else
-      echo "Runtime .env does not exist yet. Run: bash phases/phase-1/run.sh"
-    fi
-    ;;
+if ! confirm; then
+  echo "Canceled."
+  exit 1
+fi
 
-  clean)
-    if ! confirm "This will remove Phase 1 containers, generated config, and service data. This is a clean reinstall."; then
-      echo "Canceled."
-      exit 1
-    fi
-    compose_down
-    remove_path "$RUNTIME_DIR/compose/phase-1"
-    remove_path "$RUNTIME_DIR/data/postgres"
-    remove_path "$RUNTIME_DIR/data/gitea"
-    remove_path "$RUNTIME_DIR/data/freellmapi"
-    remove_path "$RUNTIME_DIR/data/redis"
-    remove_path "$RUNTIME_DIR/data/openhands"
-    echo "Phase 1 runtime config and service data removed."
-    echo "Run again: bash phases/phase-1/run.sh"
-    ;;
-esac
+compose_down
 
+remove_path "$RUNTIME_DIR/compose/phase-1"
+remove_path "$RUNTIME_DIR/compose/phase-1a"
+remove_path "$RUNTIME_DIR/data/postgres"
+remove_path "$RUNTIME_DIR/data/gitea"
+remove_path "$RUNTIME_DIR/data/freellmapi"
+remove_path "$RUNTIME_DIR/data/redis"
+remove_path "$RUNTIME_DIR/data/openhands"
+remove_path "$RUNTIME_DIR/projects"
+remove_path "$RUNTIME_DIR/logs/phase-1"
+
+remove_ufw_rule 2222
+remove_ufw_rule 3000
+remove_ufw_rule 3001
+remove_ufw_rule 3002
+remove_ufw_rule 4000
+
+echo "Phase 1 was removed."
 echo
-echo "Phase 1 reset completed."
+echo "Current baseline: Phase 0 prepared machine."
+echo "Next run:"
+echo
+echo "bash phases/phase-1/run.sh"
