@@ -150,7 +150,7 @@ EOF_ENV
   set_env_if_missing LITELLM_MASTER_KEY "sk-$(random_hex)"
   set_env_if_missing LITELLM_SALT_KEY "sk-$(random_hex)"
   set_env_if_missing FREELLMAPI_PORT 3001
-  set_env_if_missing FREELLMAPI_HOST_BIND 127.0.0.1
+  set_env_value FREELLMAPI_HOST_BIND 0.0.0.0
   set_env_if_missing FREELLMAPI_ENCRYPTION_KEY "$(random_hex_32)"
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_RETENTION_DAYS 90
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_MAX_ROWS 100000
@@ -198,7 +198,7 @@ validate_prerequisites() {
 }
 
 configure_firewall() {
-  local gitea_port litellm_port openhands_port ufw_status
+  local gitea_port freellmapi_port litellm_port openhands_port ufw_status
 
   if ! command -v ufw >/dev/null 2>&1; then
     ok "UFW not installed; skipping local firewall configuration"
@@ -216,22 +216,25 @@ configure_firewall() {
   fi
 
   gitea_port="$(get_env_value GITEA_HTTP_PORT)"
+  freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
   [ -z "$gitea_port" ] && gitea_port="3000"
+  [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
 
   sudo ufw allow "${gitea_port}/tcp" comment 'Ektisis Gitea' >/dev/null
   ok "UFW allows Gitea port $gitea_port/tcp"
 
+  sudo ufw allow "${freellmapi_port}/tcp" comment 'Ektisis FreeLLMAPI' >/dev/null
+  ok "UFW allows FreeLLMAPI port $freellmapi_port/tcp"
+
   sudo ufw allow "${litellm_port}/tcp" comment 'Ektisis LiteLLM' >/dev/null
   ok "UFW allows LiteLLM port $litellm_port/tcp"
 
   sudo ufw allow "${openhands_port}/tcp" comment 'Ektisis OpenHands' >/dev/null
   ok "UFW allows OpenHands port $openhands_port/tcp"
-
-  ok "FreeLLMAPI port is not opened publicly"
 }
 
 start_postgres() {
@@ -345,11 +348,12 @@ print_access_urls() {
   echo "Service URLs:"
   echo
   [ -n "$root_url" ] && echo "Gitea: $root_url"
-  echo "FreeLLMAPI: http://127.0.0.1:$freellmapi_port/"
   if [ -n "$public_ip" ]; then
+    echo "FreeLLMAPI: http://$public_ip:$freellmapi_port/"
     echo "LiteLLM: http://$public_ip:$litellm_port/"
     echo "OpenHands: http://$public_ip:$openhands_port/"
   elif [ -n "$local_ip" ]; then
+    echo "FreeLLMAPI: http://$local_ip:$freellmapi_port/"
     echo "LiteLLM: http://$local_ip:$litellm_port/"
     echo "OpenHands: http://$local_ip:$openhands_port/"
   fi
