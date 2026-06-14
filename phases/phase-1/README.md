@@ -122,19 +122,15 @@ Default mode: recreate containers only, preserving runtime config and service da
 bash phases/phase-1/reset.sh --containers
 ```
 
-Runtime mode: remove generated runtime config, including `.env`, but keep service data volumes.
-
-```bash
-bash phases/phase-1/reset.sh --runtime --yes
-```
-
 Clean mode: remove containers, generated runtime config, and Phase 1 service data. Use this for a true clean reinstall.
 
 ```bash
 bash phases/phase-1/reset.sh --clean --yes
 ```
 
-After `--runtime` or `--clean`, run:
+There is intentionally no config-only reset mode. Phase 1 stores database credentials in the generated `.env`. Removing `.env` while keeping PostgreSQL data can create a broken state where the new password no longer matches the persisted database.
+
+After `--clean`, run:
 
 ```bash
 bash phases/phase-1/run.sh
