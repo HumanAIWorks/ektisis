@@ -102,7 +102,10 @@ wait_http() {
 }
 
 write_litellm_config() {
-  cat > "$LITELLM_CONFIG_FILE" <<'EOF_CONFIG'
+  local litellm_master_key
+  litellm_master_key="$(get_env_value LITELLM_MASTER_KEY)"
+
+  cat > "$LITELLM_CONFIG_FILE" <<EOF_CONFIG
 model_list:
   - model_name: ektisis-free
     litellm_params:
@@ -111,8 +114,9 @@ model_list:
       api_key: os.environ/FREE_LLM_API_KEY
 
 general_settings:
-  master_key: os.environ/LITELLM_MASTER_KEY
+  master_key: "$litellm_master_key"
   database_url: os.environ/DATABASE_URL
+  litellm_key_header_name: "x-litellm-api-key"
 EOF_CONFIG
 }
 
@@ -191,15 +195,8 @@ EOF_ENV
   set_env_if_missing FREE_LLM_API_BASE http://freellmapi:3001/v1
   set_env_if_missing FREE_LLM_API_KEY sk-placeholder
 
-  if [ ! -f "$LITELLM_CONFIG_FILE" ]; then
-    write_litellm_config
-    echo "OK: created LiteLLM config file."
-  elif grep -q 'model: openai/ektisis-free' "$LITELLM_CONFIG_FILE" 2>/dev/null; then
-    write_litellm_config
-    echo "OK: updated LiteLLM config to route FreeLLMAPI through openai/auto."
-  else
-    echo "OK: using existing LiteLLM config file."
-  fi
+  write_litellm_config
+  echo "OK: wrote LiteLLM config file."
 }
 
 validate_phase0() {
@@ -423,7 +420,7 @@ print_access_urls() {
   echo "LiteLLM API key: $litellm_master_key"
   echo
   echo "Use the LiteLLM UI username/password to sign in at /ui."
-  echo "Use the LiteLLM API key only as an Authorization Bearer token for API clients."
+  echo "Use the LiteLLM API key in Swagger or as an Authorization Bearer token for API clients."
 }
 
 print_result() {
