@@ -56,7 +56,6 @@ prepare_runtime() {
   mkdir -p "$PHASE_RUNTIME_DIR"
   mkdir -p "$RUNTIME_DIR/data/postgres"
   mkdir -p "$RUNTIME_DIR/data/gitea"
-  mkdir -p "$RUNTIME_DIR/data/litellm-postgres"
   mkdir -p "$RUNTIME_DIR/data/redis"
   mkdir -p "$RUNTIME_DIR/data/openhands"
   mkdir -p "$RUNTIME_DIR/projects"
@@ -105,14 +104,14 @@ EOF_ENV
     echo "OK: using existing Phase 1 environment file."
   fi
 
-  set_env_if_missing LITELLM_POSTGRES_IMAGE postgres:16-alpine
-  set_env_if_missing LITELLM_POSTGRES_DB litellm
-  set_env_if_missing LITELLM_POSTGRES_USER litellm
-  set_env_if_missing LITELLM_POSTGRES_PASSWORD "$(random_hex)"
+  set_env_if_missing LITELLM_DB litellm
   set_env_if_missing LITELLM_IMAGE docker.litellm.ai/berriai/litellm:main-latest
   set_env_if_missing LITELLM_PORT 4000
   set_env_if_missing LITELLM_MASTER_KEY "sk-$(random_hex)"
   set_env_if_missing LITELLM_SALT_KEY "sk-$(random_hex)"
+  set_env_if_missing FREELLMAPI_IMAGE hashicorp/http-echo:1.0.0
+  set_env_if_missing FREELLMAPI_PORT 3001
+  set_env_if_missing FREELLMAPI_MODEL_NAME ektisis-free
   set_env_if_missing REDIS_IMAGE redis:7-alpine
   set_env_if_missing OPENHANDS_IMAGE docker.all-hands.dev/all-hands-ai/openhands:latest
   set_env_if_missing OPENHANDS_SANDBOX_IMAGE docker.all-hands.dev/all-hands-ai/runtime:latest
@@ -156,6 +155,51 @@ validate_prerequisites() {
   command -v curl >/dev/null 2>&1 && ok "curl command found" || fail "curl command not found"
 }
 
+start_postgres() {
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d postgres
+}
+
+wait_for_postgres() {
+  local attempt postgres_user postgres_db
+  postgres_user="$(get_env_value POSTGRES_USER)"
+  postgres_db="$(get_env_value POSTGRES_DB)"
+  [ -z "$postgres_user" ] && postgres_user="gitea"
+  [ -z "$postgres_db" ] && postgres_db="gitea"
+
+  for attempt in $(seq 1 30); do
+    if docker exec ektisis-postgres pg_isready -U "$postgres_user" -d "$postgres_db" >/dev/null 2>&1; then
+      ok "PostgreSQL is ready"
+      return 0
+    fi
+    sleep 2
+  done
+
+  fail "PostgreSQL did not become ready"
+  return 1
+}
+
+ensure_litellm_database() {
+  local postgres_user postgres_password litellm_db exists
+  postgres_user="$(get_env_value POSTGRES_USER)"
+  postgres_password="$(get_env_value POSTGRES_PASSWORD)"
+  litellm_db="$(get_env_value LITELLM_DB)"
+  [ -z "$postgres_user" ] && postgres_user="gitea"
+  [ -z "$litellm_db" ] && litellm_db="litellm"
+
+  exists="$(docker exec -e PGPASSWORD="$postgres_password" ektisis-postgres psql -U "$postgres_user" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${litellm_db}'" 2>/dev/null || true)"
+
+  if [ "$exists" = "1" ]; then
+    ok "LiteLLM database already exists in shared PostgreSQL"
+    return 0
+  fi
+
+  if docker exec -e PGPASSWORD="$postgres_password" ektisis-postgres createdb -U "$postgres_user" "$litellm_db" >/dev/null 2>&1; then
+    ok "LiteLLM database created in shared PostgreSQL"
+  else
+    fail "could not create LiteLLM database in shared PostgreSQL"
+  fi
+}
+
 start_stack() {
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d
 }
@@ -171,12 +215,14 @@ container_health() {
 }
 
 validate_stack() {
-  local gitea_port litellm_port openhands_port
+  local gitea_port freellmapi_port litellm_port openhands_port
 
   gitea_port="$(get_env_value GITEA_HTTP_PORT)"
+  freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
   [ -z "$gitea_port" ] && gitea_port="3000"
+  [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
 
@@ -184,8 +230,8 @@ validate_stack() {
     && ok "Compose project can be inspected" \
     || fail "Compose project cannot be inspected"
 
-  container_running ektisis-postgres && ok "Gitea PostgreSQL container is running" || fail "Gitea PostgreSQL container is not running"
-  [ "$(container_health ektisis-postgres)" = "healthy" ] && ok "Gitea PostgreSQL is healthy" || fail "Gitea PostgreSQL is not healthy: $(container_health ektisis-postgres)"
+  container_running ektisis-postgres && ok "shared PostgreSQL container is running" || fail "shared PostgreSQL container is not running"
+  [ "$(container_health ektisis-postgres)" = "healthy" ] && ok "shared PostgreSQL is healthy" || fail "shared PostgreSQL is not healthy: $(container_health ektisis-postgres)"
 
   container_running ektisis-gitea && ok "Gitea container is running" || fail "Gitea container is not running"
   if curl -fsS --max-time 10 "http://127.0.0.1:$gitea_port/" >/dev/null 2>&1; then
@@ -194,8 +240,12 @@ validate_stack() {
     fail "Gitea HTTP does not respond locally on port $gitea_port"
   fi
 
-  container_running ektisis-litellm-postgres && ok "LiteLLM PostgreSQL container is running" || fail "LiteLLM PostgreSQL container is not running"
-  [ "$(container_health ektisis-litellm-postgres)" = "healthy" ] && ok "LiteLLM PostgreSQL is healthy" || fail "LiteLLM PostgreSQL is not healthy: $(container_health ektisis-litellm-postgres)"
+  container_running ektisis-freellmapi && ok "FreeLLMAPI container is running" || fail "FreeLLMAPI container is not running"
+  if curl -fsS --max-time 10 "http://127.0.0.1:$freellmapi_port/" >/dev/null 2>&1; then
+    ok "FreeLLMAPI HTTP responds locally on port $freellmapi_port"
+  else
+    fail "FreeLLMAPI HTTP does not respond locally on port $freellmapi_port"
+  fi
 
   container_running ektisis-litellm && ok "LiteLLM container is running" || fail "LiteLLM container is not running"
   if curl -fsS --max-time 10 "http://127.0.0.1:$litellm_port/health/readiness" >/dev/null 2>&1; then
@@ -216,10 +266,12 @@ validate_stack() {
 }
 
 print_access_urls() {
-  local root_url litellm_port openhands_port public_ip local_ip
+  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip
   root_url="$(get_env_value GITEA_ROOT_URL)"
+  freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
+  [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
 
@@ -231,9 +283,11 @@ print_access_urls() {
   echo
   [ -n "$root_url" ] && echo "Gitea: $root_url"
   if [ -n "$public_ip" ]; then
+    echo "FreeLLMAPI: http://$public_ip:$freellmapi_port/"
     echo "LiteLLM: http://$public_ip:$litellm_port/"
     echo "OpenHands: http://$public_ip:$openhands_port/"
   elif [ -n "$local_ip" ]; then
+    echo "FreeLLMAPI: http://$local_ip:$freellmapi_port/"
     echo "LiteLLM: http://$local_ip:$litellm_port/"
     echo "OpenHands: http://$local_ip:$openhands_port/"
   fi
@@ -269,11 +323,16 @@ validate_prerequisites
 section "Step 3: prepare runtime configuration."
 prepare_runtime
 
-section "Step 4: start all services with Docker Compose."
+section "Step 4: start shared PostgreSQL."
+start_postgres
+wait_for_postgres
+ensure_litellm_database
+
+section "Step 5: start all services with Docker Compose."
 start_stack
 ok "Docker Compose up completed"
 
-section "Step 5: validate service health."
+section "Step 6: validate service health."
 validate_stack
 
 print_result
