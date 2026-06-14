@@ -60,6 +60,16 @@ set_env_if_missing() {
   fi
 }
 
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
 prepare_runtime() {
   mkdir -p "$PHASE_RUNTIME_DIR"
   mkdir -p "$RUNTIME_DIR/data/postgres"
@@ -124,7 +134,7 @@ EOF_ENV
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_RETENTION_DAYS 90
   set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_MAX_ROWS 100000
   set_env_if_missing REDIS_IMAGE redis:7-alpine
-  set_env_if_missing OPENHANDS_IMAGE docker.all-hands.dev/all-hands-ai/openhands:latest
+  set_env_value OPENHANDS_IMAGE docker.openhands.dev/openhands/openhands:1.8
   set_env_if_missing OPENHANDS_SANDBOX_IMAGE docker.all-hands.dev/all-hands-ai/runtime:latest
   set_env_if_missing OPENHANDS_PORT 3002
   set_env_if_missing OPENHANDS_LLM_MODEL ektisis-free
