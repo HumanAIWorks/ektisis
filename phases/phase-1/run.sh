@@ -37,6 +37,14 @@ random_hex() {
   fi
 }
 
+random_hex_32() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 32
+  else
+    date +%s%N | sha256sum | awk '{print $1}'
+  fi
+}
+
 get_env_value() {
   local key="$1"
   if [ -f "$ENV_FILE" ]; then
@@ -56,6 +64,7 @@ prepare_runtime() {
   mkdir -p "$PHASE_RUNTIME_DIR"
   mkdir -p "$RUNTIME_DIR/data/postgres"
   mkdir -p "$RUNTIME_DIR/data/gitea"
+  mkdir -p "$RUNTIME_DIR/data/freellmapi"
   mkdir -p "$RUNTIME_DIR/data/redis"
   mkdir -p "$RUNTIME_DIR/data/openhands"
   mkdir -p "$RUNTIME_DIR/projects"
@@ -109,9 +118,11 @@ EOF_ENV
   set_env_if_missing LITELLM_PORT 4000
   set_env_if_missing LITELLM_MASTER_KEY "sk-$(random_hex)"
   set_env_if_missing LITELLM_SALT_KEY "sk-$(random_hex)"
-  set_env_if_missing FREELLMAPI_IMAGE hashicorp/http-echo:1.0.0
   set_env_if_missing FREELLMAPI_PORT 3001
-  set_env_if_missing FREELLMAPI_MODEL_NAME ektisis-free
+  set_env_if_missing FREELLMAPI_HOST_BIND 127.0.0.1
+  set_env_if_missing FREELLMAPI_ENCRYPTION_KEY "$(random_hex_32)"
+  set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_RETENTION_DAYS 90
+  set_env_if_missing FREELLMAPI_REQUEST_ANALYTICS_MAX_ROWS 100000
   set_env_if_missing REDIS_IMAGE redis:7-alpine
   set_env_if_missing OPENHANDS_IMAGE docker.all-hands.dev/all-hands-ai/openhands:latest
   set_env_if_missing OPENHANDS_SANDBOX_IMAGE docker.all-hands.dev/all-hands-ai/runtime:latest
@@ -241,10 +252,10 @@ validate_stack() {
   fi
 
   container_running ektisis-freellmapi && ok "FreeLLMAPI container is running" || fail "FreeLLMAPI container is not running"
-  if curl -fsS --max-time 10 "http://127.0.0.1:$freellmapi_port/" >/dev/null 2>&1; then
-    ok "FreeLLMAPI HTTP responds locally on port $freellmapi_port"
+  if curl -fsS --max-time 10 "http://127.0.0.1:$freellmapi_port/api/ping" >/dev/null 2>&1; then
+    ok "FreeLLMAPI ping endpoint responds locally on port $freellmapi_port"
   else
-    fail "FreeLLMAPI HTTP does not respond locally on port $freellmapi_port"
+    fail "FreeLLMAPI ping endpoint does not respond locally on port $freellmapi_port"
   fi
 
   container_running ektisis-litellm && ok "LiteLLM container is running" || fail "LiteLLM container is not running"
@@ -282,12 +293,11 @@ print_access_urls() {
   echo "Service URLs:"
   echo
   [ -n "$root_url" ] && echo "Gitea: $root_url"
+  echo "FreeLLMAPI: http://127.0.0.1:$freellmapi_port/"
   if [ -n "$public_ip" ]; then
-    echo "FreeLLMAPI: http://$public_ip:$freellmapi_port/"
     echo "LiteLLM: http://$public_ip:$litellm_port/"
     echo "OpenHands: http://$public_ip:$openhands_port/"
   elif [ -n "$local_ip" ]; then
-    echo "FreeLLMAPI: http://$local_ip:$freellmapi_port/"
     echo "LiteLLM: http://$local_ip:$litellm_port/"
     echo "OpenHands: http://$local_ip:$openhands_port/"
   fi
