@@ -9,6 +9,8 @@ Phase 0 prepares the machine. Phase 1 starts the services.
 ```txt
 phases/phase-1/README.md
 phases/phase-1/run.sh
+phases/phase-1/reconcile.sh
+phases/phase-1/reset.sh
 phases/phase-1/compose.yml
 ```
 
@@ -89,6 +91,54 @@ The `run.sh` script generates these values in:
 ```
 
 At the end of a successful run, the script prints the LiteLLM UI username, UI password, and API key.
+
+## Reconcile runtime
+
+Use reconcile when generated config and running containers may be out of sync, but you do not want to delete data.
+
+This is the safe fix for cases where `.env` has one LiteLLM key, but the running container still has an older key.
+
+```bash
+bash phases/phase-1/reconcile.sh
+```
+
+The script checks and fixes:
+
+```txt
+LiteLLM LITELLM_MASTER_KEY
+LiteLLM UI_PASSWORD
+OpenHands LLM_API_KEY
+```
+
+If a mismatch is found, the affected container is recreated with the current `.env`.
+
+## Reset modes
+
+Use `reset.sh` instead of manually deleting folders.
+
+Default mode: recreate containers only, preserving runtime config and service data.
+
+```bash
+bash phases/phase-1/reset.sh --containers
+```
+
+Runtime mode: remove generated runtime config, including `.env`, but keep service data volumes.
+
+```bash
+bash phases/phase-1/reset.sh --runtime --yes
+```
+
+Clean mode: remove containers, generated runtime config, and Phase 1 service data. Use this for a true clean reinstall.
+
+```bash
+bash phases/phase-1/reset.sh --clean --yes
+```
+
+After `--runtime` or `--clean`, run:
+
+```bash
+bash phases/phase-1/run.sh
+```
 
 ## Validation
 
