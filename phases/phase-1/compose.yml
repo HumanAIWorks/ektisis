@@ -82,6 +82,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gitea}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${LITELLM_DB:-litellm}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?LITELLM_MASTER_KEY is required}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?LITELLM_SALT_KEY is required}
+      UI_USERNAME: ${UI_USERNAME:-admin}
+      UI_PASSWORD: ${UI_PASSWORD:?UI_PASSWORD is required}
       STORE_MODEL_IN_DB: "True"
       FREE_LLM_API_BASE: http://freellmapi:3001/v1
       FREE_LLM_API_KEY: ${FREE_LLM_API_KEY:-sk-placeholder}
