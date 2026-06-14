@@ -72,16 +72,19 @@ The repository keeps the source compose file. Secrets and generated runtime conf
 
 ## LiteLLM access
 
-LiteLLM has two different credential types:
+LiteLLM uses three different credential values:
 
 ```txt
 UI_USERNAME / UI_PASSWORD
 LITELLM_MASTER_KEY
+LITELLM_API_KEY
 ```
 
 Use `UI_USERNAME` and `UI_PASSWORD` to sign in to the LiteLLM dashboard at `/ui`.
 
-Use `LITELLM_MASTER_KEY` as the LiteLLM API key for API clients, with the standard bearer-token authentication format.
+`LITELLM_MASTER_KEY` is the proxy admin key. The script uses it internally to generate a LiteLLM virtual key.
+
+`LITELLM_API_KEY` is the virtual key for normal API clients, Swagger, and tools that call LiteLLM.
 
 The `run.sh` script generates these values in:
 
@@ -89,7 +92,7 @@ The `run.sh` script generates these values in:
 ~/ektisis-runtime/compose/phase-1/.env
 ```
 
-At the end of a successful run, the script prints the LiteLLM UI username, UI password, and API key.
+At the end of a successful run, the script prints the LiteLLM UI username, UI password, and virtual API key.
 
 ## Reset to Phase 0 baseline
 
@@ -134,6 +137,7 @@ shared PostgreSQL container is running and healthy
 Gitea responds locally
 FreeLLMAPI responds locally
 LiteLLM readiness endpoint responds locally
+LiteLLM virtual API key is generated
 Redis is running and healthy
 OpenHands container is running
 OpenHands HTTP responds locally
