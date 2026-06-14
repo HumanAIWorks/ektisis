@@ -14,20 +14,9 @@ FAIL=0
 
 cd "$ROOT_DIR"
 
-ok() {
-  echo "OK: $1"
-  PASS=$((PASS + 1))
-}
-
-fail() {
-  echo "FAIL: $1"
-  FAIL=$((FAIL + 1))
-}
-
-section() {
-  echo
-  echo "$1"
-}
+ok() { echo "OK: $1"; PASS=$((PASS + 1)); }
+fail() { echo "FAIL: $1"; FAIL=$((FAIL + 1)); }
+section() { echo; echo "$1"; }
 
 random_hex() {
   if command -v openssl >/dev/null 2>&1; then
@@ -64,7 +53,6 @@ set_env_value() {
   local key="$1"
   local value="$2"
   local tmp_file
-
   tmp_file="$(mktemp)"
 
   if [ -f "$ENV_FILE" ]; then
@@ -140,7 +128,6 @@ prepare_runtime() {
 
   if [ ! -f "$ENV_FILE" ]; then
     local local_ip public_ip domain postgres_password
-
     local_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
     [ -z "$local_ip" ] && local_ip="localhost"
 
@@ -151,7 +138,6 @@ prepare_runtime() {
 
     domain="$local_ip"
     [ -n "$public_ip" ] && domain="$public_ip"
-
     postgres_password="$(random_hex)"
 
     cat > "$ENV_FILE" <<EOF_ENV
@@ -316,7 +302,7 @@ container_running() {
 
 container_health() {
   local name="$1"
-  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none}}{{end}}' "$name" 2>/dev/null || echo unknown
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null || echo unknown
 }
 
 read_freellmapi_unified_key() {
