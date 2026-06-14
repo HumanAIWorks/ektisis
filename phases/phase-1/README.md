@@ -1,18 +1,16 @@
-# Phase 1 — Gitea
+# Phase 1 — Factory Docker Compose Stack
 
-Phase 1 installs and validates the Git server stack used by Ektisis.
+Phase 1 starts the Ektisis service stack with Docker Compose.
 
-This phase owns:
+Phase 0 prepares the machine. Phase 1 starts the services.
+
+## Public files
 
 ```txt
-Gitea
-PostgreSQL for Gitea
-Git smoke test
+phases/phase-1/README.md
+phases/phase-1/run.sh
+phases/phase-1/compose.yml
 ```
-
-PostgreSQL is included here because it is a Gitea dependency.
-
-The Git smoke test is included here because it validates that Gitea is actually usable as a Git server.
 
 ## Run
 
@@ -22,54 +20,66 @@ From the repository root:
 bash phases/phase-1/run.sh
 ```
 
-That is the public entrypoint for this phase.
+The script prepares runtime configuration, runs Docker Compose, and validates the services.
 
-## What run.sh does
-
-```txt
-validate Phase 0
-start Gitea + PostgreSQL
-validate Gitea + PostgreSQL
-check Gitea access
-run temporary Git clone/commit/push smoke test
-clean temporary Git smoke test resources
-```
-
-## Current implementation note
-
-This unified phase currently reuses implementation scripts from:
+## Services in this compose
 
 ```txt
-phases/phase-1a
-phases/phase-1b
+Gitea
+PostgreSQL for Gitea
+LiteLLM
+PostgreSQL for LiteLLM
+Redis
+OpenHands
 ```
 
-Those directories are internal implementation details while the phase is being consolidated.
+PostgreSQL for Gitea is included because Gitea depends on it.
 
-The public interface for Phase 1 is only:
+PostgreSQL for LiteLLM is included because LiteLLM uses it for proxy state, virtual keys, and persistence.
+
+Redis is included as a shared lightweight infrastructure service for later orchestration needs.
+
+## Dependency rule
+
+Service ordering belongs in Docker Compose when there is a direct dependency.
+
+Examples:
 
 ```txt
-phases/phase-1/README.md
-phases/phase-1/run.sh
+Gitea depends on PostgreSQL for Gitea
+LiteLLM depends on PostgreSQL for LiteLLM
+OpenHands depends on LiteLLM and Gitea
 ```
 
-## Completion criteria
+## Runtime files
 
-Phase 1 is complete when:
+Runtime files are created outside the repository:
 
 ```txt
-Gitea is running
-PostgreSQL is running
-Gitea responds over HTTP
-Gitea can create temporary validation resources
-Git clone works
-Git commit works
-Git push works
-temporary validation resources are removed
+~/ektisis-runtime/compose/phase-1/.env
+~/ektisis-runtime/compose/phase-1/litellm-config.yaml
+~/ektisis-runtime/data/
+~/ektisis-runtime/projects/
 ```
 
-## Next implementation step inside Phase 1
+The repository keeps the source compose file. Secrets and generated runtime config stay out of Git.
 
-Add Gitea Actions Runner to this phase.
+## Validation
 
-The runner belongs to Phase 1 because it is part of the Gitea-based source-control and validation stack.
+After `docker compose up`, the script validates:
+
+```txt
+Gitea PostgreSQL container is running and healthy
+Gitea responds locally
+LiteLLM PostgreSQL container is running and healthy
+LiteLLM readiness endpoint responds locally
+Redis is running and healthy
+OpenHands container is running
+OpenHands HTTP responds locally
+```
+
+## Current limitation
+
+FreeLLMAPI is represented in the LiteLLM configuration as an OpenAI-compatible route target.
+
+A Docker service for FreeLLMAPI should only be added after the exact image and startup contract are confirmed, so the main compose does not intentionally include a broken placeholder service.
