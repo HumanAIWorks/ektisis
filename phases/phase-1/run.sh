@@ -331,11 +331,67 @@ sync_freellmapi_key_to_litellm() {
   return 1
 }
 
+extract_litellm_api_key_from_login_response() {
+  python3 - <<'PY'
+import base64
+import json
+import re
+import sys
+
+text = sys.stdin.read()
+
+values = []
+
+for match in re.findall(r'(?:^|[;\s])token=([^;\s]+)', text, flags=re.IGNORECASE | re.MULTILINE):
+    values.append(match.strip())
+
+try:
+    body = text.split('\r\n\r\n', 1)[-1]
+    data = json.loads(body)
+except Exception:
+    data = None
+
+def walk(obj):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key in {'key', 'api_key', 'token', 'access_token', 'accessToken'} and isinstance(value, str):
+                values.append(value)
+            walk(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            walk(item)
+
+walk(data)
+
+for value in list(values):
+    if value.startswith('sk-'):
+        print(value)
+        sys.exit(0)
+
+for value in values:
+    parts = value.split('.')
+    if len(parts) < 2:
+        continue
+    payload = parts[1]
+    payload += '=' * (-len(payload) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(payload.encode()).decode()
+        data = json.loads(decoded)
+    except Exception:
+        continue
+    key = data.get('key')
+    if isinstance(key, str) and key.startswith('sk-'):
+        print(key)
+        sys.exit(0)
+PY
+}
+
 ensure_litellm_api_key() {
-  local litellm_port master_key api_key response header_name header_value
+  local litellm_port ui_username ui_password api_key endpoint payload response http_status
 
   litellm_port="$(get_env_value LITELLM_PORT)"
-  master_key="$(get_env_value LITELLM_MASTER_KEY)"
+  ui_username="$(get_env_value UI_USERNAME)"
+  ui_password="$(get_env_value UI_PASSWORD)"
   api_key="$(get_env_value LITELLM_API_KEY)"
   [ -z "$litellm_port" ] && litellm_port="4000"
 
@@ -346,23 +402,25 @@ ensure_litellm_api_key() {
 
   wait_http "LiteLLM readiness endpoint for API key generation" "http://127.0.0.1:$litellm_port/health/readiness" 60 2 || return 1
 
-  header_name="Authorization"
-  header_value="Bearer $master_key"
+  payload="$(jq -nc --arg username "$ui_username" --arg password "$ui_password" '{username:$username,password:$password}')"
 
-  response="$(curl -fsS --max-time 20 -X POST "http://127.0.0.1:$litellm_port/key/generate" \
-    -H "$header_name: $header_value" \
-    -H 'Content-Type: application/json' \
-    --data-raw '{"models":["ektisis-free"],"metadata":{"source":"ektisis-phase-1"}}' 2>/dev/null || true)"
+  for endpoint in /v2/login /login; do
+    response="$(curl -i -sS --max-time 20 -X POST "http://127.0.0.1:$litellm_port$endpoint" \
+      -H 'Content-Type: application/json' \
+      --data-raw "$payload" 2>/dev/null || true)"
 
-  api_key="$(printf '%s' "$response" | jq -r '.key // empty' 2>/dev/null || true)"
+    api_key="$(printf '%s' "$response" | extract_litellm_api_key_from_login_response | head -n 1)"
+    if [ -n "$api_key" ]; then
+      set_env_value LITELLM_API_KEY "$api_key"
+      ok "LiteLLM API virtual key generated from UI login"
+      return 0
+    fi
 
-  if [ -n "$api_key" ]; then
-    set_env_value LITELLM_API_KEY "$api_key"
-    ok "LiteLLM API virtual key generated"
-    return 0
-  fi
+    http_status="$(printf '%s' "$response" | awk 'NR==1 {print $2}')"
+    [ -n "$http_status" ] && echo "LiteLLM login endpoint $endpoint returned HTTP $http_status without an API key."
+  done
 
-  fail "could not generate LiteLLM API virtual key"
+  fail "could not generate LiteLLM API virtual key from UI login"
   return 1
 }
 
