@@ -70,6 +70,25 @@ set_env_value() {
   fi
 }
 
+wait_http() {
+  local name="$1"
+  local url="$2"
+  local attempts="${3:-60}"
+  local delay="${4:-2}"
+  local attempt
+
+  for attempt in $(seq 1 "$attempts"); do
+    if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
+      ok "$name responds"
+      return 0
+    fi
+    sleep "$delay"
+  done
+
+  fail "$name does not respond: $url"
+  return 1
+}
+
 prepare_runtime() {
   mkdir -p "$PHASE_RUNTIME_DIR"
   mkdir -p "$RUNTIME_DIR/data/postgres"
@@ -79,6 +98,8 @@ prepare_runtime() {
   mkdir -p "$RUNTIME_DIR/data/openhands"
   mkdir -p "$RUNTIME_DIR/projects"
   mkdir -p "$RUNTIME_DIR/logs/phase-1"
+
+  chmod 0777 "$RUNTIME_DIR/data/freellmapi" || true
 
   if [ ! -f "$ENV_FILE" ] && [ -f "$LEGACY_ENV_FILE" ]; then
     cp "$LEGACY_ENV_FILE" "$ENV_FILE"
@@ -255,35 +276,19 @@ validate_stack() {
   [ "$(container_health ektisis-postgres)" = "healthy" ] && ok "shared PostgreSQL is healthy" || fail "shared PostgreSQL is not healthy: $(container_health ektisis-postgres)"
 
   container_running ektisis-gitea && ok "Gitea container is running" || fail "Gitea container is not running"
-  if curl -fsS --max-time 10 "http://127.0.0.1:$gitea_port/" >/dev/null 2>&1; then
-    ok "Gitea HTTP responds locally on port $gitea_port"
-  else
-    fail "Gitea HTTP does not respond locally on port $gitea_port"
-  fi
+  wait_http "Gitea HTTP" "http://127.0.0.1:$gitea_port/" 30 2 || true
 
   container_running ektisis-freellmapi && ok "FreeLLMAPI container is running" || fail "FreeLLMAPI container is not running"
-  if curl -fsS --max-time 10 "http://127.0.0.1:$freellmapi_port/api/ping" >/dev/null 2>&1; then
-    ok "FreeLLMAPI ping endpoint responds locally on port $freellmapi_port"
-  else
-    fail "FreeLLMAPI ping endpoint does not respond locally on port $freellmapi_port"
-  fi
+  wait_http "FreeLLMAPI ping endpoint" "http://127.0.0.1:$freellmapi_port/api/ping" 60 2 || true
 
   container_running ektisis-litellm && ok "LiteLLM container is running" || fail "LiteLLM container is not running"
-  if curl -fsS --max-time 10 "http://127.0.0.1:$litellm_port/health/readiness" >/dev/null 2>&1; then
-    ok "LiteLLM readiness endpoint responds locally on port $litellm_port"
-  else
-    fail "LiteLLM readiness endpoint does not respond locally on port $litellm_port"
-  fi
+  wait_http "LiteLLM readiness endpoint" "http://127.0.0.1:$litellm_port/health/readiness" 60 2 || true
 
   container_running ektisis-redis && ok "Redis container is running" || fail "Redis container is not running"
   [ "$(container_health ektisis-redis)" = "healthy" ] && ok "Redis is healthy" || fail "Redis is not healthy: $(container_health ektisis-redis)"
 
   container_running ektisis-openhands && ok "OpenHands container is running" || fail "OpenHands container is not running"
-  if curl -fsS --max-time 10 "http://127.0.0.1:$openhands_port/" >/dev/null 2>&1; then
-    ok "OpenHands HTTP responds locally on port $openhands_port"
-  else
-    fail "OpenHands HTTP does not respond locally on port $openhands_port"
-  fi
+  wait_http "OpenHands HTTP" "http://127.0.0.1:$openhands_port/" 60 2 || true
 }
 
 print_access_urls() {
