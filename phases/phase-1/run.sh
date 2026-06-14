@@ -89,6 +89,21 @@ wait_http() {
   return 1
 }
 
+write_litellm_config() {
+  cat > "$LITELLM_CONFIG_FILE" <<'EOF_CONFIG'
+model_list:
+  - model_name: ektisis-free
+    litellm_params:
+      model: openai/auto
+      api_base: os.environ/FREE_LLM_API_BASE
+      api_key: os.environ/FREE_LLM_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+EOF_CONFIG
+}
+
 prepare_runtime() {
   mkdir -p "$PHASE_RUNTIME_DIR"
   mkdir -p "$RUNTIME_DIR/data/postgres"
@@ -163,19 +178,11 @@ EOF_ENV
   set_env_if_missing FREE_LLM_API_KEY sk-placeholder
 
   if [ ! -f "$LITELLM_CONFIG_FILE" ]; then
-    cat > "$LITELLM_CONFIG_FILE" <<'EOF_CONFIG'
-model_list:
-  - model_name: ektisis-free
-    litellm_params:
-      model: openai/ektisis-free
-      api_base: os.environ/FREE_LLM_API_BASE
-      api_key: os.environ/FREE_LLM_API_KEY
-
-general_settings:
-  master_key: os.environ/LITELLM_MASTER_KEY
-  database_url: os.environ/DATABASE_URL
-EOF_CONFIG
+    write_litellm_config
     echo "OK: created LiteLLM config file."
+  elif grep -q 'model: openai/ektisis-free' "$LITELLM_CONFIG_FILE" 2>/dev/null; then
+    write_litellm_config
+    echo "OK: updated LiteLLM config to route FreeLLMAPI through openai/auto."
   else
     echo "OK: using existing LiteLLM config file."
   fi
@@ -296,6 +303,35 @@ container_health() {
   docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null || echo unknown
 }
 
+read_freellmapi_unified_key() {
+  docker exec ektisis-freellmapi node -e "const Database=require('better-sqlite3'); const db=new Database('/app/server/data/freeapi.db', { readonly: true }); const row=db.prepare(\"SELECT value FROM settings WHERE key = 'unified_api_key'\").get(); if (row && row.value) console.log(row.value);" 2>/dev/null || true
+}
+
+sync_freellmapi_key_to_litellm() {
+  local attempt current_key discovered_key
+
+  for attempt in $(seq 1 30); do
+    if container_running ektisis-freellmapi; then
+      discovered_key="$(read_freellmapi_unified_key | tail -n 1 | tr -d '\r\n')"
+      if [ -n "$discovered_key" ]; then
+        current_key="$(get_env_value FREE_LLM_API_KEY)"
+        if [ "$current_key" != "$discovered_key" ]; then
+          set_env_value FREE_LLM_API_KEY "$discovered_key"
+          docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --force-recreate litellm >/dev/null
+          ok "LiteLLM was recreated with the FreeLLMAPI unified API key"
+        else
+          ok "LiteLLM already has the FreeLLMAPI unified API key"
+        fi
+        return 0
+      fi
+    fi
+    sleep 2
+  done
+
+  fail "could not read FreeLLMAPI unified API key from its SQLite database"
+  return 1
+}
+
 validate_stack() {
   local gitea_port freellmapi_port litellm_port openhands_port
 
@@ -401,7 +437,10 @@ section "Step 6: start all services with Docker Compose."
 start_stack
 ok "Docker Compose up completed"
 
-section "Step 7: validate service health."
+section "Step 7: sync FreeLLMAPI key into LiteLLM."
+sync_freellmapi_key_to_litellm
+
+section "Step 8: validate service health."
 validate_stack
 
 print_result
