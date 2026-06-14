@@ -315,6 +315,7 @@ sync_freellmapi_key_to_litellm() {
         current_key="$(get_env_value FREE_LLM_API_KEY)"
         if [ "$current_key" != "$discovered_key" ]; then
           set_env_value FREE_LLM_API_KEY "$discovered_key"
+          set_env_value LITELLM_API_KEY ""
           docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --force-recreate litellm >/dev/null
           ok "LiteLLM was recreated with the FreeLLMAPI unified API key"
         else
@@ -327,6 +328,41 @@ sync_freellmapi_key_to_litellm() {
   done
 
   fail "could not read FreeLLMAPI unified API key from its SQLite database"
+  return 1
+}
+
+ensure_litellm_api_key() {
+  local litellm_port master_key api_key response header_name header_value
+
+  litellm_port="$(get_env_value LITELLM_PORT)"
+  master_key="$(get_env_value LITELLM_MASTER_KEY)"
+  api_key="$(get_env_value LITELLM_API_KEY)"
+  [ -z "$litellm_port" ] && litellm_port="4000"
+
+  if [ -n "$api_key" ]; then
+    ok "LiteLLM API virtual key already exists"
+    return 0
+  fi
+
+  wait_http "LiteLLM readiness endpoint for API key generation" "http://127.0.0.1:$litellm_port/health/readiness" 60 2 || return 1
+
+  header_name="Authorization"
+  header_value="Bearer $master_key"
+
+  response="$(curl -fsS --max-time 20 -X POST "http://127.0.0.1:$litellm_port/key/generate" \
+    -H "$header_name: $header_value" \
+    -H 'Content-Type: application/json' \
+    --data-raw '{"models":["ektisis-free"],"metadata":{"source":"ektisis-phase-1"}}' 2>/dev/null || true)"
+
+  api_key="$(printf '%s' "$response" | jq -r '.key // empty' 2>/dev/null || true)"
+
+  if [ -n "$api_key" ]; then
+    set_env_value LITELLM_API_KEY "$api_key"
+    ok "LiteLLM API virtual key generated"
+    return 0
+  fi
+
+  fail "could not generate LiteLLM API virtual key"
   return 1
 }
 
@@ -366,14 +402,14 @@ validate_stack() {
 }
 
 print_access_urls() {
-  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip ui_username ui_password litellm_master_key
+  local root_url freellmapi_port litellm_port openhands_port public_ip local_ip ui_username ui_password litellm_api_key
   root_url="$(get_env_value GITEA_ROOT_URL)"
   freellmapi_port="$(get_env_value FREELLMAPI_PORT)"
   litellm_port="$(get_env_value LITELLM_PORT)"
   openhands_port="$(get_env_value OPENHANDS_PORT)"
   ui_username="$(get_env_value UI_USERNAME)"
   ui_password="$(get_env_value UI_PASSWORD)"
-  litellm_master_key="$(get_env_value LITELLM_MASTER_KEY)"
+  litellm_api_key="$(get_env_value LITELLM_API_KEY)"
   [ -z "$freellmapi_port" ] && freellmapi_port="3001"
   [ -z "$litellm_port" ] && litellm_port="4000"
   [ -z "$openhands_port" ] && openhands_port="3002"
@@ -399,7 +435,7 @@ print_access_urls() {
   echo "LiteLLM access:"
   echo "LiteLLM UI username: $ui_username"
   echo "LiteLLM UI password: $ui_password"
-  echo "LiteLLM API key: $litellm_master_key"
+  echo "LiteLLM API key: $litellm_api_key"
   echo
   echo "Use the LiteLLM UI username/password to sign in at /ui."
   echo "Use the LiteLLM API key as a bearer token for API clients."
@@ -452,5 +488,8 @@ sync_freellmapi_key_to_litellm
 
 section "Step 8: validate service health."
 validate_stack
+
+section "Step 9: generate LiteLLM API key."
+ensure_litellm_api_key
 
 print_result
